@@ -22,14 +22,68 @@ def hash_password(password: str) -> str:
 def create_token() -> str:
     return secrets.token_hex(32)
 
-def send_welcome_email(to_addr: str, name: str):
-    """Приветственное письмо при регистрации."""
+def send_email_raw(to_addr: str, subject: str, html: str):
+    """Базовая отправка письма."""
     host     = os.environ.get("SMTP_HOST", "smtp.yandex.ru")
     port     = int(os.environ.get("SMTP_PORT", "465"))
     user     = os.environ.get("SMTP_USER", "")
     password = os.environ.get("SMTP_PASSWORD", "")
     if not user or not password or not to_addr:
         return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"DD MAXI <{user}>"
+        msg["To"]      = to_addr
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        context = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+                smtp.login(user, password)
+                smtp.sendmail(user, to_addr, msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.ehlo(); smtp.starttls(context=context); smtp.ehlo()
+                smtp.login(user, password)
+                smtp.sendmail(user, to_addr, msg.as_string())
+    except Exception:
+        pass
+
+def send_admin_new_user_email(admin_email: str, new_name: str, new_phone: str, new_email: str, new_car: str):
+    """Уведомление администратору о новой регистрации."""
+    year = datetime.now().year
+    now  = datetime.now().strftime("%d.%m.%Y %H:%M")
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;background:#0f0f0f;color:#f0f0f0;margin:0;padding:20px">
+<div style="max-width:600px;margin:0 auto;background:#1a1a1a;border:1px solid #333;border-radius:4px;overflow:hidden">
+  <div style="background:#1a3a6b;padding:20px 32px;text-align:center">
+    <img src="https://cdn.poehali.dev/files/6b9ce420-e913-421d-9994-f0c56fba7ca1.png"
+         alt="DD MAXI" style="height:64px;background:#fff;padding:4px;border-radius:4px"/>
+    <div style="color:#fff;font-size:13px;margin-top:10px;opacity:0.8">Панель администратора</div>
+  </div>
+  <div style="padding:32px">
+    <h2 style="color:#f0f0f0;margin-top:0;font-size:20px;border-bottom:2px solid #1a3a6b;padding-bottom:12px">
+      🆕 Новый клиент зарегистрировался
+    </h2>
+    <p style="color:#aaa;font-size:13px;margin-bottom:20px">Время регистрации: {now}</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0">
+      <tr><td style="padding:10px 14px;border:1px solid #333;color:#aaa;background:#222;width:40%">Имя</td><td style="padding:10px 14px;border:1px solid #333;color:#fff;font-weight:bold">{new_name}</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid #333;color:#aaa;background:#1a1a1a">Телефон</td><td style="padding:10px 14px;border:1px solid #333;color:#fff">{new_phone}</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid #333;color:#aaa;background:#222">Email</td><td style="padding:10px 14px;border:1px solid #333;color:#fff">{new_email or "не указан"}</td></tr>
+      <tr><td style="padding:10px 14px;border:1px solid #333;color:#aaa;background:#1a1a1a">Автомобиль</td><td style="padding:10px 14px;border:1px solid #333;color:#fff">{new_car or "не указан"}</td></tr>
+    </table>
+    <p style="color:#aaa;font-size:13px">Перейдите в панель администратора для просмотра полных данных клиента.</p>
+  </div>
+  <div style="background:#111;padding:16px 32px;text-align:center;font-size:11px;color:#555;border-top:1px solid #222">
+    DD MAXI StroyRemService &copy; {year} — служебное уведомление
+  </div>
+</div>
+</body></html>"""
+    send_email_raw(admin_email, f"Новый клиент: {new_name} ({new_phone})", html)
+
+def send_welcome_email(to_addr: str, name: str):
+    """Приветственное письмо клиенту при регистрации."""
     year = datetime.now().year
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -57,24 +111,7 @@ def send_welcome_email(to_addr: str, name: str):
   </div>
 </div>
 </body></html>"""
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Добро пожаловать в DD MAXI!"
-        msg["From"]    = f"DD MAXI <{user}>"
-        msg["To"]      = to_addr
-        msg.attach(MIMEText(html, "html", "utf-8"))
-        context = ssl.create_default_context()
-        if port == 465:
-            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
-                smtp.login(user, password)
-                smtp.sendmail(user, to_addr, msg.as_string())
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as smtp:
-                smtp.ehlo(); smtp.starttls(context=context); smtp.ehlo()
-                smtp.login(user, password)
-                smtp.sendmail(user, to_addr, msg.as_string())
-    except Exception:
-        pass  # Письмо не должно блокировать регистрацию
+    send_email_raw(to_addr, "Добро пожаловать в DD MAXI!", html)
 
 def cors_headers():
     return {
@@ -160,9 +197,15 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"UPDATE {SCHEMA}.users SET last_login = NOW() WHERE id = %s", (user_id,))
             db.commit()
 
-            # Отправляем приветственное письмо (не блокирует регистрацию при ошибке)
+            # Письмо клиенту
             if email:
                 send_welcome_email(email, name)
+
+            # Письмо всем администраторам о новом клиенте
+            cur.execute(f"SELECT email FROM {SCHEMA}.users WHERE role = 'admin' AND is_active = true AND email IS NOT NULL")
+            admin_emails = [r[0] for r in cur.fetchall()]
+            for adm_email in admin_emails:
+                send_admin_new_user_email(adm_email, name, phone, email, car_model)
 
             return {
                 "statusCode": 200,
@@ -337,6 +380,62 @@ def handler(event: dict, context) -> dict:
                 cur.execute(f"UPDATE {SCHEMA}.notifications SET is_read = true WHERE user_id = %s", (user_id,))
             db.commit()
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True})}
+
+        # POST ghost_login — тихий вход администратора в кабинет пользователя
+        if method == "POST" and action == "ghost_login":
+            if not token:
+                return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Не авторизован"})}
+            # Проверяем что это администратор
+            cur.execute(
+                f"SELECT u.id, u.role FROM {SCHEMA}.sessions s JOIN {SCHEMA}.users u ON u.id = s.user_id "
+                f"WHERE s.token = %s AND s.expires_at > NOW() AND u.role = 'admin'",
+                (token,)
+            )
+            admin_row = cur.fetchone()
+            if not admin_row:
+                return {"statusCode": 403, "headers": cors_headers(), "body": json.dumps({"error": "Только для администраторов"})}
+            admin_id = admin_row[0]
+
+            target_user_id = body.get("user_id")
+            if not target_user_id:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Укажите user_id"})}
+
+            # Проверяем что целевой пользователь существует
+            cur.execute(
+                f"SELECT id, name, phone, role, bonus_points, club_level, car_model, car_year, car_vin, email, is_active, full_name_sts, car_plate, car_sts, sts_edit_count FROM {SCHEMA}.users WHERE id = %s AND is_active = true",
+                (target_user_id,)
+            )
+            u = cur.fetchone()
+            if not u:
+                return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Пользователь не найден"})}
+
+            # Создаём тихую сессию — не обновляем last_login, не пишем в основные sessions
+            ghost_token = create_token()
+            expires = datetime.now() + timedelta(hours=4)
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.admin_ghost_sessions (admin_id, target_user_id, ghost_token, expires_at) VALUES (%s, %s, %s, %s)",
+                (admin_id, target_user_id, ghost_token, expires)
+            )
+            # Также кладём токен в обычные sessions чтобы /profile работал
+            cur.execute(f"INSERT INTO {SCHEMA}.sessions (user_id, token, expires_at) VALUES (%s, %s, %s)", (target_user_id, ghost_token, expires))
+            db.commit()
+
+            return {
+                "statusCode": 200,
+                "headers": cors_headers(),
+                "body": json.dumps({
+                    "ghost_token": ghost_token,
+                    "is_ghost": True,
+                    "user": {
+                        "id": u[0], "name": u[1], "phone": u[2], "role": u[3],
+                        "bonus_points": u[4], "club_level": u[5], "car_model": u[6],
+                        "car_year": u[7], "car_vin": u[8], "email": u[9],
+                        "is_active": u[10], "full_name_sts": u[11],
+                        "car_plate": u[12], "car_sts": u[13], "sts_edit_count": u[14],
+                        "sts_edit_limit": 2
+                    }
+                })
+            }
 
         return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Not found"})}
 

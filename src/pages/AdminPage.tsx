@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, User } from "@/context/AuthContext";
 
 const ADMIN_URL = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
 const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
@@ -40,11 +40,12 @@ const STS_LIMIT = 2;
 const EMOJI_LIST = ["😊","😂","❤️","👍","🔥","🚗","🛠️","✅","⚠️","📞","📸","🎉","💪","🙏","😎","🤝","👌","💯","⭐","🏆","🔧","⚙️","🛞","🔑","📋","📅","💰","✨","😅","🤔"];
 
 const MANAGE_TABS = [
-  { id: "stats",     label: "Дашборд",        icon: "BarChart3" },
-  { id: "users",     label: "Пользователи",   icon: "Users" },
-  { id: "visits",    label: "Визиты",         icon: "CalendarCheck" },
-  { id: "add_visit", label: "Добавить визит", icon: "Plus" },
-  { id: "mailing",   label: "Рассылка",       icon: "Send" },
+  { id: "stats",      label: "Дашборд",           icon: "BarChart3" },
+  { id: "users",      label: "Пользователи",      icon: "Users" },
+  { id: "user_mgmt",  label: "Управление",        icon: "UserCog" },
+  { id: "visits",     label: "Визиты",            icon: "CalendarCheck" },
+  { id: "add_visit",  label: "Добавить визит",    icon: "Plus" },
+  { id: "mailing",    label: "Рассылка",          icon: "Send" },
 ];
 const PERSONAL_TABS = [
   { id: "my_mail",     label: "Моя почта",    icon: "Mail" },
@@ -79,6 +80,19 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [mailSending, setMailSending] = useState(false);
   const [mailMsg, setMailMsg] = useState("");
 
+  /* user management state */
+  const [userDetail, setUserDetail] = useState<(AdminUser & { visits?: AdminVisit[]; full_name_sts?: string; car_plate?: string; car_sts?: string; sts_edit_count?: number; car_year?: string; car_vin?: string }) | null>(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
+  const [userEditForm, setUserEditForm] = useState<Record<string, string | number | boolean>>({});
+  const [userEditSaving, setUserEditSaving] = useState(false);
+  const [userEditMsg, setUserEditMsg] = useState("");
+  const [newUserForm, setNewUserForm] = useState({ name: "", phone: "", email: "", password: "", car_model: "", car_year: "", car_vin: "", full_name_sts: "", car_plate: "", car_sts: "", role: "user", club_level: "bronze", bonus_points: "0" });
+  const [newUserSaving, setNewUserSaving] = useState(false);
+  const [newUserMsg, setNewUserMsg] = useState("");
+  const [ghostLoading, setGhostLoading] = useState<number | null>(null);
+  const [ghostUser, setGhostUser] = useState<User | null>(null);
+  const [ghostToken, setGhostToken] = useState<string | null>(null);
+
   /* personal state */
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifLoading,  setNotifLoading]  = useState(false);
@@ -110,6 +124,37 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const loadStats  = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=stats`, { headers: H() }); const d = await r.json(); if (r.ok) setStats(d); } finally { setLoading(false); } }, [H]);
   const loadUsers  = useCallback(async (q = "") => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=users&search=${encodeURIComponent(q)}`, { headers: H() }); const d = await r.json(); if (r.ok) setUsers(d.users || []); } finally { setLoading(false); } }, [H]);
   const loadVisits = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=visits`, { headers: H() }); const d = await r.json(); if (r.ok) setVisits(d.visits || []); } finally { setLoading(false); } }, [H]);
+
+  const loadUserDetail = useCallback(async (id: number) => {
+    setUserDetailLoading(true);
+    try {
+      const r = await fetch(`${ADMIN_URL}?action=user_detail&id=${id}`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) {
+        setUserDetail(d);
+        setUserEditForm({
+          name: d.name || "", phone: d.phone || "", email: d.email || "",
+          car_model: d.car_model || "", car_year: d.car_year || "", car_vin: d.car_vin || "",
+          full_name_sts: d.full_name_sts || "", car_plate: d.car_plate || "", car_sts: d.car_sts || "",
+          role: d.role || "user", club_level: d.club_level || "bronze",
+          bonus_points: d.bonus_points ?? 0, is_active: d.is_active ?? true,
+          sts_edit_count: d.sts_edit_count ?? 0, new_password: "",
+        });
+      }
+    } finally { setUserDetailLoading(false); }
+  }, [H]);
+
+  const ghostLogin = useCallback(async (userId: number) => {
+    setGhostLoading(userId);
+    try {
+      const r = await fetch(`${AUTH_URL}?action=ghost_login`, {
+        method: "POST", headers: H(), body: JSON.stringify({ user_id: userId })
+      });
+      const d = await r.json();
+      if (r.ok) { setGhostUser(d.user); setGhostToken(d.ghost_token); }
+      else alert(d.error || "Ошибка входа");
+    } finally { setGhostLoading(null); }
+  }, [H]);
 
   const loadNotifications = useCallback(async () => {
     setNotifLoading(true);
@@ -413,7 +458,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                             <span className="label-tag text-primary">{u.bonus_points} баллов · {LEVEL_LABELS[u.club_level]||u.club_level}</span>
                           </div>
                         </div>
-                        <button onClick={()=>{setEditUser({...u});setEditMsg("");}} className="btn-ghost text-xs py-1.5 px-3 shrink-0"><Icon name="Edit" size={13} />Изменить</button>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={()=>{setActiveTab("user_mgmt");loadUserDetail(u.id);}} className="btn-ghost text-xs py-1.5 px-3"><Icon name="UserCog" size={13} />Управление</button>
+                          <button onClick={()=>{setEditUser({...u});setEditMsg("");}} className="btn-ghost text-xs py-1.5 px-3"><Icon name="Edit" size={13} />Быстро</button>
+                        </div>
                       </div>
                     ))}
                     {users.length===0 && <div className="card-dark p-8 text-center text-muted-foreground"><Icon name="Users" size={24} className="mx-auto mb-3" /><p className="text-sm">Нет пользователей</p></div>}
@@ -576,6 +624,253 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   {mailMsg && <div className={`text-xs px-3 py-2 rounded ${mailMsg.includes("Рассылка")||mailMsg.includes("Отправлено")?"bg-green-500/10 border border-green-500/30 text-green-500":"bg-destructive/10 border border-destructive/30 text-destructive"}`}>{mailMsg}</div>}
                   <button type="submit" disabled={mailSending} className="btn-red disabled:opacity-60">{mailSending?<><Icon name="Loader2" size={15} className="animate-spin"/>Отправляем...</>:<><Icon name="Send" size={15}/>{mailForm.type==="broadcast"?"Отправить всем":"Отправить"}</>}</button>
                 </form>
+              </div>
+            )}
+
+            {/* ── УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ── */}
+            {activeTab === "user_mgmt" && (
+              <div>
+                {/* Ghost session overlay */}
+                {ghostUser && ghostToken && (
+                  <div className="fixed inset-0 z-[100] bg-background flex flex-col">
+                    <div className="bg-amber-600 text-white px-4 py-2.5 flex items-center gap-3 shrink-0">
+                      <Icon name="Eye" size={16} />
+                      <span className="text-sm font-bold">Режим просмотра: {ghostUser.name} (ID {ghostUser.id})</span>
+                      <span className="text-xs opacity-80 ml-1">— вы видите кабинет от лица пользователя, ваш вход нигде не отображается</span>
+                      <button onClick={()=>{setGhostUser(null);setGhostToken(null);}} className="ml-auto bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1.5 font-bold uppercase tracking-wide flex items-center gap-1.5">
+                        <Icon name="X" size={13} />Выйти из просмотра
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6">
+                      <div className="max-w-3xl mx-auto space-y-6">
+                        <div className="card-dark p-5">
+                          <div className="label-tag mb-4">Профиль пользователя</div>
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-14 h-14 bg-primary flex items-center justify-center text-white font-display font-black text-xl">
+                              {ghostUser.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2)}
+                            </div>
+                            <div>
+                              <div className="font-display font-bold text-lg uppercase">{ghostUser.name}</div>
+                              <div className="flex gap-2 mt-1 flex-wrap">
+                                <span className="label-tag">{ghostUser.phone}</span>
+                                {ghostUser.email && <span className="label-tag">{ghostUser.email}</span>}
+                                {ghostUser.car_model && <span className="label-tag">{ghostUser.car_model}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="card-dark p-4 text-center border-t-2 border-t-primary">
+                              <div className="font-display font-bold text-2xl text-primary">{ghostUser.bonus_points}</div>
+                              <div className="label-tag">баллов</div>
+                            </div>
+                            <div className="card-dark p-4 text-center border-t-2 border-t-border">
+                              <div className="font-display font-bold text-2xl">{LEVEL_LABELS[ghostUser.club_level]||ghostUser.club_level}</div>
+                              <div className="label-tag">уровень клуба</div>
+                            </div>
+                            <div className="card-dark p-4 text-center border-t-2 border-t-border">
+                              <div className="font-display font-bold text-2xl">{ghostUser.role==="admin"?"Админ":"Клиент"}</div>
+                              <div className="label-tag">роль</div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="card-dark p-5">
+                          <div className="label-tag mb-3">Данные автомобиля</div>
+                          <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                            {[["Модель", ghostUser.car_model],["Год", ghostUser.car_year],["VIN", ghostUser.car_vin],["Гос. номер", ghostUser.car_plate],["ФИО по СТС", ghostUser.full_name_sts],["№ СТС", ghostUser.car_sts]].map(([k,v])=>v?(
+                              <div key={k as string} className="flex gap-2"><span className="label-tag">{k}:</span><span className="text-foreground">{v as string}</span></div>
+                            ):null)}
+                          </div>
+                        </div>
+                        <div className="bg-amber-600/10 border border-amber-600/30 rounded p-4 text-sm text-amber-500">
+                          <Icon name="Info" size={15} className="inline mr-2" />
+                          Это режим просмотра. Вы видите кабинет пользователя без возможности изменений от его имени. Ваш вход не логируется.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="label-tag">Управление пользователями</div>
+                  <button onClick={()=>{setUserDetail(null);setNewUserMsg("");}} className="btn-ghost text-xs py-1.5 px-3">
+                    <Icon name="Plus" size={13} />Новый пользователь
+                  </button>
+                </div>
+
+                {/* Форма создания нового пользователя */}
+                {!userDetail && (
+                  <form onSubmit={async e => {
+                    e.preventDefault(); setNewUserSaving(true); setNewUserMsg("");
+                    try {
+                      const r = await fetch(`${ADMIN_URL}?action=create_user`, {
+                        method: "POST", headers: H(), body: JSON.stringify(newUserForm)
+                      });
+                      const d = await r.json();
+                      if (r.ok) {
+                        setNewUserMsg(`✓ Создан: ${d.message}${d.temp_password ? `. Временный пароль: ${d.temp_password}` : ""}`);
+                        setNewUserForm({ name:"", phone:"", email:"", password:"", car_model:"", car_year:"", car_vin:"", full_name_sts:"", car_plate:"", car_sts:"", role:"user", club_level:"bronze", bonus_points:"0" });
+                        loadUsers();
+                      } else setNewUserMsg(d.error || "Ошибка");
+                    } finally { setNewUserSaving(false); }
+                  }} className="card-dark p-6 space-y-5 mb-6">
+                    <div className="font-display text-xs uppercase tracking-widest text-muted-foreground mb-1">Регистрация нового пользователя</div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div><label className="label-tag mb-1.5 block">Имя *</label><input required type="text" value={newUserForm.name} onChange={e=>setNewUserForm(f=>({...f,name:e.target.value}))} className="input-dark" placeholder="Иван Петров"/></div>
+                      <div><label className="label-tag mb-1.5 block">Телефон *</label><input required type="tel" value={newUserForm.phone} onChange={e=>setNewUserForm(f=>({...f,phone:e.target.value}))} className="input-dark" placeholder="+79991234567"/></div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div><label className="label-tag mb-1.5 block">Email</label><input type="email" value={newUserForm.email} onChange={e=>setNewUserForm(f=>({...f,email:e.target.value}))} className="input-dark" placeholder="user@mail.ru"/></div>
+                      <div><label className="label-tag mb-1.5 block">Пароль (пусто = авто)</label><input type="text" value={newUserForm.password} onChange={e=>setNewUserForm(f=>({...f,password:e.target.value}))} className="input-dark" placeholder="Оставьте пустым для авто"/></div>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div><label className="label-tag mb-1.5 block">Автомобиль</label><input type="text" value={newUserForm.car_model} onChange={e=>setNewUserForm(f=>({...f,car_model:e.target.value}))} className="input-dark" placeholder="Toyota Camry"/></div>
+                      <div><label className="label-tag mb-1.5 block">Год</label><input type="text" value={newUserForm.car_year} onChange={e=>setNewUserForm(f=>({...f,car_year:e.target.value}))} className="input-dark" placeholder="2020"/></div>
+                      <div><label className="label-tag mb-1.5 block">Гос. номер</label><input type="text" value={newUserForm.car_plate} onChange={e=>setNewUserForm(f=>({...f,car_plate:e.target.value.toUpperCase()}))} className="input-dark" placeholder="А123БВ777"/></div>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div><label className="label-tag mb-1.5 block">ФИО по СТС</label><input type="text" value={newUserForm.full_name_sts} onChange={e=>setNewUserForm(f=>({...f,full_name_sts:e.target.value}))} className="input-dark" placeholder="Петров Иван Сергеевич"/></div>
+                      <div><label className="label-tag mb-1.5 block">№ СТС</label><input type="text" value={newUserForm.car_sts} onChange={e=>setNewUserForm(f=>({...f,car_sts:e.target.value}))} className="input-dark" placeholder="77 АА 123456"/></div>
+                    </div>
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div><label className="label-tag mb-1.5 block">Роль</label>
+                        <select value={newUserForm.role} onChange={e=>setNewUserForm(f=>({...f,role:e.target.value}))} className="input-dark">
+                          <option value="user">Пользователь</option><option value="admin">Администратор</option>
+                        </select>
+                      </div>
+                      <div><label className="label-tag mb-1.5 block">Уровень клуба</label>
+                        <select value={newUserForm.club_level} onChange={e=>setNewUserForm(f=>({...f,club_level:e.target.value}))} className="input-dark">
+                          {Object.entries(LEVEL_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                        </select>
+                      </div>
+                      <div><label className="label-tag mb-1.5 block">Бонусы</label><input type="number" value={newUserForm.bonus_points} onChange={e=>setNewUserForm(f=>({...f,bonus_points:e.target.value}))} className="input-dark"/></div>
+                    </div>
+                    {newUserMsg && <div className={`text-xs px-3 py-2 rounded ${newUserMsg.startsWith("✓")?"bg-green-500/10 border border-green-500/30 text-green-500":"bg-destructive/10 border border-destructive/30 text-destructive"}`}>{newUserMsg}</div>}
+                    <button type="submit" disabled={newUserSaving} className="btn-red disabled:opacity-60">{newUserSaving?<><Icon name="Loader2" size={15} className="animate-spin"/>Создаём...</>:<><Icon name="UserPlus" size={15}/>Создать пользователя</>}</button>
+                  </form>
+                )}
+
+                {/* Полное редактирование выбранного пользователя */}
+                {userDetail && (
+                  <div>
+                    <button onClick={()=>setUserDetail(null)} className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-5 text-sm">
+                      <Icon name="ArrowLeft" size={15} />Назад к созданию
+                    </button>
+                    {userDetailLoading ? <div className="card-dark p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary"/></div> : (
+                      <div className="space-y-5">
+                        {/* Карточка пользователя */}
+                        <div className="card-dark p-5 flex items-center gap-4 flex-wrap">
+                          <div className="w-12 h-12 bg-primary flex items-center justify-center text-white font-display font-black text-lg shrink-0">
+                            {userDetail.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2)}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-display font-bold text-base uppercase tracking-wide">{userDetail.name}</div>
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              <span className="label-tag">#{userDetail.id}</span>
+                              <span className="label-tag">{userDetail.phone}</span>
+                              {userDetail.email && <span className="label-tag">{userDetail.email}</span>}
+                              <span className="label-tag">Рег: {new Date(userDetail.created_at).toLocaleDateString("ru-RU")}</span>
+                              {userDetail.last_login && <span className="label-tag">Вход: {new Date(userDetail.last_login).toLocaleDateString("ru-RU")}</span>}
+                            </div>
+                          </div>
+                          <button
+                            onClick={()=>ghostLogin(userDetail.id)}
+                            disabled={ghostLoading === userDetail.id}
+                            className="btn-ghost text-xs py-2 px-4 border-amber-600/40 text-amber-500 hover:bg-amber-600/10 shrink-0"
+                          >
+                            {ghostLoading===userDetail.id ? <Icon name="Loader2" size={14} className="animate-spin"/> : <Icon name="Eye" size={14}/>}
+                            Войти в кабинет тихо
+                          </button>
+                        </div>
+
+                        {/* Форма полного редактирования */}
+                        <form onSubmit={async e => {
+                          e.preventDefault(); setUserEditSaving(true); setUserEditMsg("");
+                          try {
+                            const r = await fetch(`${ADMIN_URL}?action=user_full&id=${userDetail.id}`, {
+                              method: "PUT", headers: H(), body: JSON.stringify(userEditForm)
+                            });
+                            const d = await r.json();
+                            if (r.ok) { setUserEditMsg("Сохранено!"); loadUserDetail(userDetail.id); }
+                            else setUserEditMsg(d.error || "Ошибка");
+                          } finally { setUserEditSaving(false); }
+                        }} className="card-dark p-6 space-y-5">
+                          <div className="font-display text-xs uppercase tracking-widest text-muted-foreground">Полное редактирование (без ограничений)</div>
+
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            <div><label className="label-tag mb-1.5 block">Имя</label><input type="text" value={String(userEditForm.name||"")} onChange={e=>setUserEditForm(f=>({...f,name:e.target.value}))} className="input-dark"/></div>
+                            <div><label className="label-tag mb-1.5 block">Телефон</label><input type="text" value={String(userEditForm.phone||"")} onChange={e=>setUserEditForm(f=>({...f,phone:e.target.value}))} className="input-dark"/></div>
+                          </div>
+                          <div className="grid sm:grid-cols-2 gap-4">
+                            <div><label className="label-tag mb-1.5 block">Email</label><input type="email" value={String(userEditForm.email||"")} onChange={e=>setUserEditForm(f=>({...f,email:e.target.value}))} className="input-dark"/></div>
+                            <div><label className="label-tag mb-1.5 block">Новый пароль</label><input type="text" value={String(userEditForm.new_password||"")} onChange={e=>setUserEditForm(f=>({...f,new_password:e.target.value}))} className="input-dark" placeholder="Оставьте пустым чтобы не менять"/></div>
+                          </div>
+
+                          <div className="pt-2 border-t border-border">
+                            <div className="label-tag mb-3">Данные автомобиля</div>
+                            <div className="grid sm:grid-cols-3 gap-4">
+                              <div><label className="label-tag mb-1.5 block">Марка и модель</label><input type="text" value={String(userEditForm.car_model||"")} onChange={e=>setUserEditForm(f=>({...f,car_model:e.target.value}))} className="input-dark"/></div>
+                              <div><label className="label-tag mb-1.5 block">Год</label><input type="text" value={String(userEditForm.car_year||"")} onChange={e=>setUserEditForm(f=>({...f,car_year:e.target.value}))} className="input-dark"/></div>
+                              <div><label className="label-tag mb-1.5 block">VIN</label><input type="text" value={String(userEditForm.car_vin||"")} onChange={e=>setUserEditForm(f=>({...f,car_vin:e.target.value.toUpperCase()}))} className="input-dark"/></div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-border">
+                            <div className="label-tag mb-3">Данные СТС (без лимита для администратора)</div>
+                            <div className="grid sm:grid-cols-3 gap-4">
+                              <div className="sm:col-span-3"><label className="label-tag mb-1.5 block">ФИО по СТС</label><input type="text" value={String(userEditForm.full_name_sts||"")} onChange={e=>setUserEditForm(f=>({...f,full_name_sts:e.target.value}))} className="input-dark"/></div>
+                              <div><label className="label-tag mb-1.5 block">Гос. номер</label><input type="text" value={String(userEditForm.car_plate||"")} onChange={e=>setUserEditForm(f=>({...f,car_plate:e.target.value.toUpperCase()}))} className="input-dark"/></div>
+                              <div><label className="label-tag mb-1.5 block">№ СТС</label><input type="text" value={String(userEditForm.car_sts||"")} onChange={e=>setUserEditForm(f=>({...f,car_sts:e.target.value}))} className="input-dark"/></div>
+                              <div><label className="label-tag mb-1.5 block">Счётчик изменений СТС</label><input type="number" min="0" max="2" value={Number(userEditForm.sts_edit_count||0)} onChange={e=>setUserEditForm(f=>({...f,sts_edit_count:parseInt(e.target.value)}))} className="input-dark"/></div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-border">
+                            <div className="label-tag mb-3">Аккаунт</div>
+                            <div className="grid sm:grid-cols-3 gap-4">
+                              <div><label className="label-tag mb-1.5 block">Роль</label>
+                                <select value={String(userEditForm.role||"user")} onChange={e=>setUserEditForm(f=>({...f,role:e.target.value}))} className="input-dark">
+                                  <option value="user">Пользователь</option><option value="admin">Администратор</option>
+                                </select>
+                              </div>
+                              <div><label className="label-tag mb-1.5 block">Уровень клуба</label>
+                                <select value={String(userEditForm.club_level||"bronze")} onChange={e=>setUserEditForm(f=>({...f,club_level:e.target.value}))} className="input-dark">
+                                  {Object.entries(LEVEL_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                                </select>
+                              </div>
+                              <div><label className="label-tag mb-1.5 block">Бонусные баллы</label><input type="number" value={Number(userEditForm.bonus_points||0)} onChange={e=>setUserEditForm(f=>({...f,bonus_points:parseInt(e.target.value)}))} className="input-dark"/></div>
+                            </div>
+                            <div className="mt-4 flex items-center gap-3">
+                              <label className="label-tag">Статус аккаунта:</label>
+                              <button type="button" onClick={()=>setUserEditForm(f=>({...f,is_active:!f.is_active}))}
+                                className={`px-3 py-1.5 text-xs font-display font-bold uppercase tracking-wide transition-colors ${userEditForm.is_active?"bg-green-500/10 border border-green-500/30 text-green-500":"bg-destructive/10 border border-destructive/30 text-destructive"}`}>
+                                {userEditForm.is_active ? "Активен — нажать для блокировки" : "Заблокирован — нажать для разблокировки"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {userEditMsg && <div className={`text-xs px-3 py-2 rounded ${userEditMsg==="Сохранено!"?"bg-green-500/10 border border-green-500/30 text-green-500":"bg-destructive/10 border border-destructive/30 text-destructive"}`}>{userEditMsg}</div>}
+                          <button type="submit" disabled={userEditSaving} className="btn-red disabled:opacity-60">{userEditSaving?<><Icon name="Loader2" size={15} className="animate-spin"/>Сохраняем...</>:<><Icon name="Save" size={15}/>Сохранить все изменения</>}</button>
+                        </form>
+
+                        {/* История визитов пользователя */}
+                        {userDetail.visits && userDetail.visits.length > 0 && (
+                          <div className="card-dark p-5">
+                            <div className="label-tag mb-4">История визитов ({userDetail.visits.length})</div>
+                            <div className="space-y-2">
+                              {userDetail.visits.map(v=>(
+                                <div key={v.id} className="flex items-center gap-3 text-sm py-2 border-b border-border last:border-0">
+                                  <div className="flex-1"><span className="font-medium">{v.service}</span><span className="label-tag ml-2">{v.visit_date}</span></div>
+                                  <div className="text-right shrink-0"><div className="font-bold">{v.cost.toLocaleString("ru-RU")} ₽</div><div className="label-tag text-primary">+{v.bonus_earned} баллов</div></div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
