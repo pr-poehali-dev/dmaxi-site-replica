@@ -162,7 +162,7 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
                     className="input-dark"
                     placeholder="ivan@example.com"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">На этот адрес придёт подтверждение и уведомления о вашем автомобиле</p>
+                  <p className="text-xs text-muted-foreground mt-1">На этот адрес придёт подтверждение о регистрации</p>
                 </div>
                 <div>
                   <label className="label-tag mb-1.5 block">ФИО по СТС *</label>
