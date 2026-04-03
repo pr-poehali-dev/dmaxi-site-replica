@@ -2,7 +2,11 @@ import json
 import os
 import hashlib
 import secrets
+import smtplib
+import ssl
 import psycopg2
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
 SCHEMA = "t_p90995829_dmaxi_site_replica"
@@ -17,6 +21,60 @@ def hash_password(password: str) -> str:
 
 def create_token() -> str:
     return secrets.token_hex(32)
+
+def send_welcome_email(to_addr: str, name: str):
+    """Приветственное письмо при регистрации."""
+    host     = os.environ.get("SMTP_HOST", "smtp.yandex.ru")
+    port     = int(os.environ.get("SMTP_PORT", "465"))
+    user     = os.environ.get("SMTP_USER", "")
+    password = os.environ.get("SMTP_PASSWORD", "")
+    if not user or not password or not to_addr:
+        return
+    year = datetime.now().year
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;background:#0f0f0f;color:#f0f0f0;margin:0;padding:20px">
+<div style="max-width:600px;margin:0 auto;background:#1a1a1a;border:1px solid #333;border-radius:4px;overflow:hidden">
+  <div style="background:#cc1a1a;padding:24px 32px;text-align:center">
+    <img src="https://cdn.poehali.dev/files/6b9ce420-e913-421d-9994-f0c56fba7ca1.png"
+         alt="DD MAXI" style="height:80px;background:#fff;padding:6px;border-radius:4px"/>
+  </div>
+  <div style="padding:32px">
+    <h2 style="color:#f0f0f0;margin-top:0;font-size:22px;border-bottom:2px solid #cc1a1a;padding-bottom:12px">Добро пожаловать в клуб DD MAXI, {name}!</h2>
+    <p style="color:#ccc;line-height:1.8">Здравствуйте, <strong style="color:#fff">{name}</strong>!</p>
+    <p style="color:#ccc;line-height:1.8">Ваша клубная карта DD MAXI успешно создана. Скидки и бонусы активны с первого посещения.</p>
+    <table style="width:100%;border-collapse:collapse;margin:20px 0">
+      <tr><td style="padding:10px;border:1px solid #333;color:#ccc;background:#222">Скидка с первого визита</td><td style="padding:10px;border:1px solid #333;color:#cc1a1a;font-weight:bold">3%</td></tr>
+      <tr><td style="padding:10px;border:1px solid #333;color:#ccc;background:#1a1a1a">Бонусные баллы</td><td style="padding:10px;border:1px solid #333;color:#cc1a1a;font-weight:bold">1 балл = 1 ₽</td></tr>
+      <tr><td style="padding:10px;border:1px solid #333;color:#ccc;background:#222">История обслуживаний</td><td style="padding:10px;border:1px solid #333;color:#cc1a1a;font-weight:bold">Онлайн</td></tr>
+      <tr><td style="padding:10px;border:1px solid #333;color:#ccc;background:#1a1a1a">Уведомления о готовности авто</td><td style="padding:10px;border:1px solid #333;color:#cc1a1a;font-weight:bold">По Email</td></tr>
+    </table>
+    <p style="color:#ccc;line-height:1.8">Войдите в личный кабинет, чтобы следить за бонусами и историей обслуживания.</p>
+  </div>
+  <div style="background:#111;padding:16px 32px;text-align:center;font-size:11px;color:#666;border-top:1px solid #222">
+    DD MAXI StroyRemService — Автосервис &copy; {year}<br>
+    <span style="color:#444">Это письмо отправлено автоматически, не отвечайте на него</span>
+  </div>
+</div>
+</body></html>"""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Добро пожаловать в DD MAXI!"
+        msg["From"]    = f"DD MAXI <{user}>"
+        msg["To"]      = to_addr
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        context = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+                smtp.login(user, password)
+                smtp.sendmail(user, to_addr, msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.ehlo(); smtp.starttls(context=context); smtp.ehlo()
+                smtp.login(user, password)
+                smtp.sendmail(user, to_addr, msg.as_string())
+    except Exception:
+        pass  # Письмо не должно блокировать регистрацию
 
 def cors_headers():
     return {
@@ -101,6 +159,10 @@ def handler(event: dict, context) -> dict:
             cur.execute(f"INSERT INTO {SCHEMA}.sessions (user_id, token, expires_at) VALUES (%s, %s, %s)", (user_id, token_val, expires))
             cur.execute(f"UPDATE {SCHEMA}.users SET last_login = NOW() WHERE id = %s", (user_id,))
             db.commit()
+
+            # Отправляем приветственное письмо (не блокирует регистрацию при ошибке)
+            if email:
+                send_welcome_email(email, name)
 
             return {
                 "statusCode": 200,

@@ -1,6 +1,14 @@
 {
   "tests": [
     {
+      "name": "Ping SMTP connection",
+      "method": "GET",
+      "path": "/?action=ping",
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    },
+    {
       "name": "Broadcast without token",
       "method": "POST",
       "path": "/?action=broadcast",
