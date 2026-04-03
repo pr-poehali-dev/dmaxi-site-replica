@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Broadcast without token",
+      "method": "POST",
+      "path": "/?action=broadcast",
+      "body": {"subject": "Тест", "message": "Тест"},
+      "expectedStatus": 403,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

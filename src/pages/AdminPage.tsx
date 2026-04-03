@@ -3,6 +3,7 @@ import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
 const ADMIN_URL = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
+const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
 
 interface AdminUser {
   id: number;
@@ -53,6 +54,7 @@ const adminTabs = [
   { id: "users", label: "Пользователи", icon: "Users" },
   { id: "visits", label: "Визиты", icon: "CalendarCheck" },
   { id: "add_visit", label: "Добавить визит", icon: "Plus" },
+  { id: "mailing", label: "Рассылка", icon: "Send" },
 ];
 
 interface AdminPageProps {
@@ -82,6 +84,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   });
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitMsg, setVisitMsg] = useState("");
+
+  const [mailForm, setMailForm] = useState({ subject: "", message: "", user_id: "", type: "broadcast" });
+  const [mailSending, setMailSending] = useState(false);
+  const [mailMsg, setMailMsg] = useState("");
 
   const authHeaders = useCallback(() => ({
     "Content-Type": "application/json",
@@ -612,6 +618,81 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                         Добавить визит
                       </>
                     )}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* РАССЫЛКА */}
+            {activeTab === "mailing" && (
+              <div>
+                <div className="label-tag mb-5">Email-рассылка</div>
+                <div className="grid sm:grid-cols-2 gap-4 mb-6">
+                  <div className="card-dark p-5 cursor-pointer hover:border-primary/30 border border-transparent transition-colors" onClick={() => setMailForm(f => ({ ...f, type: "broadcast" }))}>
+                    <div className={`flex items-center gap-3 mb-2 ${mailForm.type === "broadcast" ? "text-primary" : ""}`}>
+                      <Icon name="Megaphone" size={18} />
+                      <span className="font-display font-bold text-sm uppercase tracking-wide">Всем клиентам</span>
+                      {mailForm.type === "broadcast" && <Icon name="Check" size={14} className="ml-auto text-primary" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Письмо придёт всем зарегистрированным пользователям и появится у них в разделе «Почта»</p>
+                  </div>
+                  <div className="card-dark p-5 cursor-pointer hover:border-primary/30 border border-transparent transition-colors" onClick={() => setMailForm(f => ({ ...f, type: "single" }))}>
+                    <div className={`flex items-center gap-3 mb-2 ${mailForm.type === "single" ? "text-primary" : ""}`}>
+                      <Icon name="User" size={18} />
+                      <span className="font-display font-bold text-sm uppercase tracking-wide">Одному клиенту</span>
+                      {mailForm.type === "single" && <Icon name="Check" size={14} className="ml-auto text-primary" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Уведомление конкретному пользователю — например, что автомобиль готов</p>
+                  </div>
+                </div>
+
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  setMailSending(true); setMailMsg("");
+                  try {
+                    const isSingle = mailForm.type === "single";
+                    const res = await fetch(`${MAILER_URL}?action=${isSingle ? "send" : "broadcast"}`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+                      body: JSON.stringify(isSingle
+                        ? { user_id: parseInt(mailForm.user_id), subject: mailForm.subject, message: mailForm.message, type: "info" }
+                        : { subject: mailForm.subject, message: mailForm.message, role: "user" }
+                      ),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      setMailMsg(isSingle
+                        ? `Уведомление отправлено. Email: ${data.email_sent ? "✓ доставлен" : "в очереди"}`
+                        : `Рассылка завершена. Получателей: ${data.total_users}, Email отправлено: ${data.emails_sent}`
+                      );
+                      setMailForm(f => ({ ...f, subject: "", message: "", user_id: "" }));
+                    } else {
+                      setMailMsg(data.error || "Ошибка отправки");
+                    }
+                  } finally { setMailSending(false); }
+                }} className="card-dark p-6 space-y-4">
+                  {mailForm.type === "single" && (
+                    <div>
+                      <label className="label-tag mb-1.5 block">ID пользователя *</label>
+                      <input required type="number" value={mailForm.user_id} onChange={e => setMailForm(f => ({ ...f, user_id: e.target.value }))} className="input-dark" placeholder="Найдите ID в разделе «Пользователи»" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="label-tag mb-1.5 block">Тема письма *</label>
+                    <input required type="text" value={mailForm.subject} onChange={e => setMailForm(f => ({ ...f, subject: e.target.value }))} className="input-dark" placeholder="Ваш автомобиль готов!" />
+                  </div>
+                  <div>
+                    <label className="label-tag mb-1.5 block">Текст сообщения *</label>
+                    <textarea required value={mailForm.message} onChange={e => setMailForm(f => ({ ...f, message: e.target.value }))} className="input-dark resize-none h-32" placeholder={mailForm.type === "broadcast" ? "Уважаемые клиенты! Используйте {name} для подстановки имени.\n\nНапример: Уважаемый, {name}! Напоминаем о плановом ТО..." : "Ваш автомобиль прошёл диагностику. Всё в порядке, можете забирать!"} />
+                    {mailForm.type === "broadcast" && <p className="text-xs text-muted-foreground mt-1">Используйте <code className="bg-secondary px-1 rounded">{"{name}"}</code> для подстановки имени получателя</p>}
+                  </div>
+                  {mailMsg && (
+                    <div className={`text-xs px-3 py-2 rounded ${mailMsg.includes("Рассылка") || mailMsg.includes("отправлено") ? "bg-green-500/10 border border-green-500/30 text-green-500" : "bg-destructive/10 border border-destructive/30 text-destructive"}`}>
+                      {mailMsg}
+                    </div>
+                  )}
+                  <button type="submit" disabled={mailSending} className="btn-red disabled:opacity-60">
+                    {mailSending ? <><Icon name="Loader2" size={15} className="animate-spin" />Отправляем...</> : <><Icon name="Send" size={15} />{mailForm.type === "broadcast" ? "Отправить всем" : "Отправить пользователю"}</>}
                   </button>
                 </form>
               </div>

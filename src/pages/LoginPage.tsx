@@ -11,7 +11,7 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState({
     phone: "", password: "", confirm: "",
-    name: "", full_name_sts: "",
+    name: "", full_name_sts: "", email: "",
     car_model: "", car_plate: "", car_year: "", car_vin: "", car_sts: "",
   });
   const [loading, setLoading] = useState(false);
@@ -62,6 +62,7 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
         await register({
           name: form.name,
           phone: form.phone,
+          email: form.email,
           password: form.password,
           car_model: form.car_model,
           full_name_sts: form.full_name_sts,
@@ -150,6 +151,18 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
                     className="input-dark"
                     placeholder="Иван"
                   />
+                </div>
+                <div>
+                  <label className="label-tag mb-1.5 block">Email *</label>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="input-dark"
+                    placeholder="ivan@example.com"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">На этот адрес придёт подтверждение и уведомления о вашем автомобиле</p>
                 </div>
                 <div>
                   <label className="label-tag mb-1.5 block">ФИО по СТС *</label>

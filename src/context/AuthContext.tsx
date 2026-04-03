@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 
 const AUTH_URL = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
 
+const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
+
 export interface User {
   id: number;
   name: string;
@@ -13,6 +15,11 @@ export interface User {
   car_model?: string;
   car_year?: string;
   car_vin?: string;
+  full_name_sts?: string;
+  car_plate?: string;
+  car_sts?: string;
+  sts_edit_count?: number;
+  sts_edit_limit?: number;
   is_active?: boolean;
   created_at?: string;
 }
@@ -22,7 +29,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
-  register: (data: { name: string; phone: string; password: string; car_model?: string; full_name_sts?: string; car_plate?: string; car_year?: string; car_vin?: string; car_sts?: string }) => Promise<void>;
+  register: (data: { name: string; phone: string; email?: string; password: string; car_model?: string; full_name_sts?: string; car_plate?: string; car_year?: string; car_vin?: string; car_sts?: string }) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User> & { new_password?: string }) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -74,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   };
 
-  const register = async (form: { name: string; phone: string; password: string; car_model?: string }) => {
+  const register = async (form: { name: string; phone: string; email?: string; password: string; car_model?: string; full_name_sts?: string; car_plate?: string; car_year?: string; car_vin?: string; car_sts?: string }) => {
     const res = await fetch(`${AUTH_URL}?action=register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,6 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("ddmaxi_token", data.token);
     setToken(data.token);
     setUser(data.user);
+    // Отправляем приветственное письмо
+    if (form.email) {
+      fetch(`${MAILER_URL}?action=welcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, email: form.email }),
+      }).catch(() => {});
+    }
   };
 
   const logout = async () => {
