@@ -22,7 +22,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
-  register: (data: { name: string; phone: string; password: string; car_model?: string }) => Promise<void>;
+  register: (data: { name: string; phone: string; password: string; car_model?: string; full_name_sts?: string; car_plate?: string; car_year?: string; car_vin?: string; car_sts?: string }) => Promise<void>;
   logout: () => void;
   updateProfile: (data: Partial<User> & { new_password?: string }) => Promise<void>;
   refreshProfile: () => Promise<void>;

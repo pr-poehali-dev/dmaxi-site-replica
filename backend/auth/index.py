@@ -50,6 +50,11 @@ def handler(event: dict, context) -> dict:
             phone = body.get("phone", "").strip()
             password = body.get("password", "")
             car_model = body.get("car_model", "").strip()
+            full_name_sts = body.get("full_name_sts", "").strip()
+            car_plate = body.get("car_plate", "").strip()
+            car_year = body.get("car_year", "").strip()
+            car_vin = body.get("car_vin", "").strip()
+            car_sts = body.get("car_sts", "").strip()
 
             if not name or not phone or not password:
                 return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Имя, телефон и пароль обязательны"})}
@@ -63,8 +68,8 @@ def handler(event: dict, context) -> dict:
 
             pwd_hash = hash_password(password)
             cur.execute(
-                f"INSERT INTO {SCHEMA}.users (name, phone, password_hash, car_model, role) VALUES (%s, %s, %s, %s, 'user') RETURNING id, name, phone, role, bonus_points, club_level",
-                (name, phone, pwd_hash, car_model)
+                f"INSERT INTO {SCHEMA}.users (name, phone, password_hash, car_model, car_year, car_vin, full_name_sts, car_plate, car_sts, role) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'user') RETURNING id, name, phone, role, bonus_points, club_level",
+                (name, phone, pwd_hash, car_model, car_year, car_vin, full_name_sts, car_plate, car_sts)
             )
             user = cur.fetchone()
             user_id = user[0]

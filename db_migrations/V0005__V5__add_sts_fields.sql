@@ -1,0 +1,4 @@
+ALTER TABLE t_p90995829_dmaxi_site_replica.users
+  ADD COLUMN IF NOT EXISTS full_name_sts VARCHAR(300),
+  ADD COLUMN IF NOT EXISTS car_plate VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS car_sts VARCHAR(30);

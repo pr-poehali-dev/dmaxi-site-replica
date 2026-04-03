@@ -9,7 +9,11 @@ interface LoginPageProps {
 export default function LoginPage({ onNavigate }: LoginPageProps) {
   const { login, register, user } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [form, setForm] = useState({ phone: "", password: "", name: "", car_model: "", confirm: "" });
+  const [form, setForm] = useState({
+    phone: "", password: "", confirm: "",
+    name: "", full_name_sts: "",
+    car_model: "", car_plate: "", car_year: "", car_vin: "", car_sts: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
@@ -55,7 +59,17 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
         await login(form.phone, form.password);
         onNavigate("account");
       } else {
-        await register({ name: form.name, phone: form.phone, password: form.password, car_model: form.car_model });
+        await register({
+          name: form.name,
+          phone: form.phone,
+          password: form.password,
+          car_model: form.car_model,
+          full_name_sts: form.full_name_sts,
+          car_plate: form.car_plate,
+          car_year: form.car_year,
+          car_vin: form.car_vin,
+          car_sts: form.car_sts,
+        });
         setDone(true);
       }
     } catch (err: unknown) {
@@ -127,24 +141,84 @@ export default function LoginPage({ onNavigate }: LoginPageProps) {
             {mode === "register" && (
               <>
                 <div>
-                  <label className="label-tag mb-1.5 block">Ваше имя *</label>
+                  <label className="label-tag mb-1.5 block">Имя *</label>
                   <input
                     required
                     type="text"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="input-dark"
-                    placeholder="Иван Петров"
+                    placeholder="Иван"
                   />
                 </div>
                 <div>
-                  <label className="label-tag mb-1.5 block">Ваш автомобиль</label>
+                  <label className="label-tag mb-1.5 block">ФИО по СТС *</label>
                   <input
+                    required
+                    type="text"
+                    value={form.full_name_sts}
+                    onChange={(e) => setForm({ ...form, full_name_sts: e.target.value })}
+                    className="input-dark"
+                    placeholder="Петров Иван Сергеевич"
+                  />
+                </div>
+                <div>
+                  <label className="label-tag mb-1.5 block">Ваш автомобиль *</label>
+                  <input
+                    required
                     type="text"
                     value={form.car_model}
                     onChange={(e) => setForm({ ...form, car_model: e.target.value })}
                     className="input-dark"
-                    placeholder="Toyota Camry 2020"
+                    placeholder="Toyota Camry"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label-tag mb-1.5 block">Гос. номер *</label>
+                    <input
+                      required
+                      type="text"
+                      value={form.car_plate}
+                      onChange={(e) => setForm({ ...form, car_plate: e.target.value.toUpperCase() })}
+                      className="input-dark"
+                      placeholder="А123БВ777"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-tag mb-1.5 block">Год выпуска *</label>
+                    <input
+                      required
+                      type="text"
+                      value={form.car_year}
+                      onChange={(e) => setForm({ ...form, car_year: e.target.value })}
+                      className="input-dark"
+                      placeholder="2020"
+                      maxLength={4}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label-tag mb-1.5 block">VIN № *</label>
+                  <input
+                    required
+                    type="text"
+                    value={form.car_vin}
+                    onChange={(e) => setForm({ ...form, car_vin: e.target.value.toUpperCase() })}
+                    className="input-dark"
+                    placeholder="XTA210990Y2765382"
+                    maxLength={17}
+                  />
+                </div>
+                <div>
+                  <label className="label-tag mb-1.5 block">№ СТС *</label>
+                  <input
+                    required
+                    type="text"
+                    value={form.car_sts}
+                    onChange={(e) => setForm({ ...form, car_sts: e.target.value })}
+                    className="input-dark"
+                    placeholder="77 АА 123456"
                   />
                 </div>
               </>
