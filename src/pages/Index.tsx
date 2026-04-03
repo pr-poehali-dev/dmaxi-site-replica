@@ -13,6 +13,8 @@ import LoginPage from "@/pages/LoginPage";            // Вход / Регист
 import AccountPage from "@/pages/AccountPage";       // Личный кабинет
 import AdminPage from "@/pages/AdminPage";           // Панель администратора
 import ShopPage from "@/pages/ShopPage";             // Магазин
+import AutoGoodsPage from "@/pages/AutoGoodsPage";   // Автотовары
+import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
 
 export default function Index() {
   const [currentPage, setCurrentPage] = useState("home");
@@ -28,7 +30,9 @@ export default function Index() {
       case "services":  return <ServicesPage onNavigate={navigate} />;
       case "prices":    return <CatalogPage onNavigate={navigate} />;
       case "booking":   return <CartPage onNavigate={navigate} />;
-      case "shop":      return <ShopPage onNavigate={navigate} />;
+      case "shop":        return <ShopPage onNavigate={navigate} />;
+      case "autogoods":   return <AutoGoodsPage onNavigate={navigate} />;
+      case "servicepay":  return <ServicePayPage onNavigate={navigate} />;
       case "club":      return <DeliveryPage onNavigate={navigate} />;
       case "portfolio": return <BlogPage onNavigate={navigate} />;
       case "about":     return <AboutPage onNavigate={navigate} />;
