@@ -1,0 +1,1 @@
+UPDATE t_p90995829_dmaxi_site_replica.users SET role = 'admin', club_level = 'platinum' WHERE id = 1;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
   { id: "home", label: "Главная" },
@@ -18,6 +19,7 @@ interface HeaderProps {
 
 export default function Header({ currentPage, onNavigate }: HeaderProps) {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
@@ -71,9 +73,22 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
           <button onClick={() => onNavigate("booking")} className="btn-red hidden sm:flex text-xs py-2.5 px-5">
             Записаться
           </button>
-          <button onClick={() => onNavigate("club")} className="btn-ghost hidden md:flex text-xs py-2.5 px-5">
-            Клуб DD
-          </button>
+          {user ? (
+            <button
+              onClick={() => onNavigate(user.role === "admin" ? "admin" : "account")}
+              className="btn-ghost hidden md:flex text-xs py-2.5 px-4 items-center gap-2"
+            >
+              <div className="w-5 h-5 bg-primary flex items-center justify-center text-white text-[9px] font-display font-black">
+                {user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
+              </div>
+              {user.role === "admin" ? "Админ" : "Кабинет"}
+            </button>
+          ) : (
+            <button onClick={() => onNavigate("login")} className="btn-ghost hidden md:flex text-xs py-2.5 px-5 items-center gap-1.5">
+              <Icon name="User" size={13} />
+              Войти / Регистрация
+            </button>
+          )}
           <button
             className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => setOpen(!open)}
@@ -98,9 +113,25 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
                 {item.label}
               </button>
             ))}
+            {user ? (
+              <button
+                onClick={() => { onNavigate(user.role === "admin" ? "admin" : "account"); setOpen(false); }}
+                className="btn-ghost mt-2 mx-3 justify-center flex items-center gap-2"
+              >
+                <Icon name="User" size={14} />
+                {user.role === "admin" ? "Панель администратора" : "Личный кабинет"}
+              </button>
+            ) : (
+              <button
+                onClick={() => { onNavigate("login"); setOpen(false); }}
+                className="btn-ghost mt-2 mx-3 justify-center"
+              >
+                Войти / Регистрация
+              </button>
+            )}
             <button
               onClick={() => { onNavigate("booking"); setOpen(false); }}
-              className="btn-red mt-3 mx-3 justify-center"
+              className="btn-red mt-2 mx-3 justify-center"
             >
               Записаться на ремонт
             </button>
