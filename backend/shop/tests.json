@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "Products list public",
+      "method": "GET",
+      "path": "/?action=products",
+      "expectedStatus": 200,
+      "expectedBody": {},
+      "bodyMatcher": "none"
+    },
+    {
+      "name": "Single product public",
+      "method": "GET",
+      "path": "/?action=product&id=9",
+      "expectedStatus": 200,
+      "expectedBody": {"product": {}},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Buy without auth",
+      "method": "POST",
+      "path": "/?action=buy",
+      "body": {"product_id": 9},
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "My orders without auth",
+      "method": "GET",
+      "path": "/?action=my_orders",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

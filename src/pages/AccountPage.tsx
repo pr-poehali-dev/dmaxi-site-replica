@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 const AUTH_URL   = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
 const CHAT_URL   = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
+const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
 
 interface Visit {
   id: number; visit_number: string; service: string; car: string;
@@ -31,13 +32,14 @@ const STS_LIMIT = 2;
 const EMOJI_LIST = ["😊","😂","❤️","👍","🔥","🚗","🛠️","✅","⚠️","📞","📸","🎉","💪","🙏","😎","🤝","👌","💯","⭐","🏆","🔧","⚙️","🛞","🔑","📋","📅","💰","✨","😅","🤔"];
 
 const tabs = [
-  { id: "history",  label: "История",  icon: "ClipboardList" },
-  { id: "wallet",   label: "Кошелёк",  icon: "Wallet" },
-  { id: "bonus",    label: "Бонусы",   icon: "Star" },
-  { id: "cars",     label: "Автомобили", icon: "Car" },
-  { id: "mail",     label: "Почта",    icon: "Mail" },
-  { id: "chat",     label: "Чат",      icon: "MessageCircle" },
-  { id: "settings", label: "Настройки", icon: "Settings" },
+  { id: "history",   label: "История",   icon: "ClipboardList" },
+  { id: "wallet",    label: "Кошелёк",   icon: "Wallet" },
+  { id: "purchases", label: "Покупки",   icon: "ShoppingBag" },
+  { id: "bonus",     label: "Бонусы",    icon: "Star" },
+  { id: "cars",      label: "Автомобили", icon: "Car" },
+  { id: "mail",      label: "Почта",     icon: "Mail" },
+  { id: "chat",      label: "Чат",       icon: "MessageCircle" },
+  { id: "settings",  label: "Настройки", icon: "Settings" },
 ];
 
 interface AccountPageProps { onNavigate: (p: string) => void; }
@@ -51,6 +53,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadNotif, setUnreadNotif] = useState(0);
   const [unreadChat, setUnreadChat] = useState(0);
+
+  // Purchases state
+  const [purchases, setPurchases] = useState<{id:number;product_title:string;product_price:number;status:string;payment_type:string;created_at:string}[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
 
   // Wallet state
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
@@ -98,6 +104,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     }
   }, [user]);
 
+  const loadPurchases = useCallback(async () => {
+    if (!token) return;
+    setPurchasesLoading(true);
+    try {
+      const r = await fetch(`${SHOP_URL}?action=my_orders`, { headers: { "X-Auth-Token": token } });
+      const d = await r.json();
+      if (r.ok) setPurchases(d.orders || []);
+    } finally { setPurchasesLoading(false); }
+  }, [token]);
+
   const loadWallet = useCallback(async () => {
     if (!token) return;
     setWalletLoading(true);
@@ -116,9 +132,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   // Загрузка данных по вкладке
   useEffect(() => {
     if (!token) return;
-    if (activeTab === "mail")   loadNotifications();
-    if (activeTab === "chat")   { loadContacts(); loadChatUsers(); }
-    if (activeTab === "wallet") loadWallet();
+    if (activeTab === "mail")      loadNotifications();
+    if (activeTab === "chat")      { loadContacts(); loadChatUsers(); }
+    if (activeTab === "wallet")    loadWallet();
+    if (activeTab === "purchases") loadPurchases();
   }, [activeTab, token]);
 
   // Счётчики непрочитанных
@@ -509,6 +526,63 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ПОКУПКИ */}
+            {activeTab === "purchases" && (
+              <div>
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="label-tag">Мои покупки в магазине</div>
+                  <button onClick={() => onNavigate("shop")} className="btn-ghost text-xs py-1.5 px-3">
+                    <Icon name="ShoppingBag" size={13} />В магазин
+                  </button>
+                </div>
+                {purchasesLoading ? (
+                  <div className="card-dark p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary" /></div>
+                ) : purchases.length === 0 ? (
+                  <div className="card-dark p-12 text-center">
+                    <Icon name="ShoppingBag" size={36} className="text-muted-foreground mx-auto mb-4 opacity-30" />
+                    <h3 className="font-display font-bold uppercase tracking-wide mb-2">Покупок пока нет</h3>
+                    <p className="text-sm text-muted-foreground mb-5">Посетите магазин и выберите товар</p>
+                    <button onClick={() => onNavigate("shop")} className="btn-red">
+                      <Icon name="ShoppingBag" size={15} />Перейти в магазин
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {purchases.map(o => {
+                      const statusLabel: Record<string,string> = { paid:"Оплачен", pending:"В обработке", delivered:"Выдан", cancelled:"Отменён" };
+                      const statusColor: Record<string,string> = {
+                        paid:"text-green-400 bg-green-500/10 border-green-500/30",
+                        pending:"text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
+                        delivered:"text-blue-400 bg-blue-500/10 border-blue-500/30",
+                        cancelled:"text-destructive bg-destructive/10 border-destructive/30",
+                      };
+                      return (
+                        <div key={o.id} className="card-dark p-5 flex items-center gap-4 flex-wrap">
+                          <div className="w-10 h-10 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <Icon name="Package" size={18} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-display font-bold text-sm uppercase tracking-wide">{o.product_title}</div>
+                            <div className="flex gap-2 mt-1 flex-wrap items-center">
+                              <span className="label-tag">#{o.id}</span>
+                              <span className="label-tag">{new Date(o.created_at).toLocaleDateString("ru-RU")}</span>
+                              <span className={`text-[10px] font-display font-bold uppercase px-2 py-0.5 border ${statusColor[o.status] || "text-muted-foreground border-border"}`}>
+                                {statusLabel[o.status] || o.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-display font-bold text-lg">{o.product_price.toLocaleString("ru-RU")} ₽</div>
+                            <div className="label-tag">с кошелька</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

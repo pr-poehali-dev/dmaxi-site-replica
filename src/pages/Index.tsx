@@ -12,6 +12,7 @@ import DeliveryPage from "@/pages/DeliveryPage";     // Клуб DD
 import LoginPage from "@/pages/LoginPage";            // Вход / Регистрация
 import AccountPage from "@/pages/AccountPage";       // Личный кабинет
 import AdminPage from "@/pages/AdminPage";           // Панель администратора
+import ShopPage from "@/pages/ShopPage";             // Магазин
 
 export default function Index() {
   const [currentPage, setCurrentPage] = useState("home");
@@ -27,6 +28,7 @@ export default function Index() {
       case "services":  return <ServicesPage onNavigate={navigate} />;
       case "prices":    return <CatalogPage onNavigate={navigate} />;
       case "booking":   return <CartPage onNavigate={navigate} />;
+      case "shop":      return <ShopPage onNavigate={navigate} />;
       case "club":      return <DeliveryPage onNavigate={navigate} />;
       case "portfolio": return <BlogPage onNavigate={navigate} />;
       case "about":     return <AboutPage onNavigate={navigate} />;

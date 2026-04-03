@@ -7,6 +7,7 @@ const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-382966
 const AUTH_URL   = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
 const CHAT_URL   = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
+const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
 
 /* ── interfaces ── */
 interface AdminUser {
@@ -45,6 +46,7 @@ const MANAGE_TABS = [
   { id: "users",      label: "Пользователи",      icon: "Users" },
   { id: "user_mgmt",  label: "Управление",        icon: "UserCog" },
   { id: "wallets",    label: "Кошельки",          icon: "Wallet" },
+  { id: "shop_orders", label: "Заказы магазина",  icon: "ShoppingBag" },
   { id: "visits",     label: "Визиты",            icon: "CalendarCheck" },
   { id: "add_visit",  label: "Добавить визит",    icon: "Plus" },
   { id: "mailing",    label: "Рассылка",          icon: "Send" },
@@ -95,6 +97,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [ghostUser, setGhostUser] = useState<User | null>(null);
   const [ghostToken, setGhostToken] = useState<string | null>(null);
 
+  /* shop orders admin state */
+  const [shopOrders, setShopOrders] = useState<{id:number;user_id:number;user_name:string;user_phone:string;product_title:string;product_price:number;status:string;payment_type:string;created_at:string}[]>([]);
+  const [shopOrdersTotal, setShopOrdersTotal] = useState(0);
+  const [shopRevenue, setShopRevenue] = useState(0);
+  const [shopOrdersLoading, setShopOrdersLoading] = useState(false);
+  const [shopSearch, setShopSearch] = useState("");
+  const [shopStatusFilter, setShopStatusFilter] = useState("");
+  const [updatingOrder, setUpdatingOrder] = useState<number | null>(null);
+
   /* wallets admin state */
   const [adminWallets, setAdminWallets] = useState<{wallet_id:number;user_id:number;name:string;phone:string;email?:string;balance:number;updated_at:string}[]>([]);
   const [adminWalletsTotal, setAdminWalletsTotal] = useState(0);
@@ -135,6 +146,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const loadStats  = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=stats`, { headers: H() }); const d = await r.json(); if (r.ok) setStats(d); } finally { setLoading(false); } }, [H]);
   const loadUsers  = useCallback(async (q = "") => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=users&search=${encodeURIComponent(q)}`, { headers: H() }); const d = await r.json(); if (r.ok) setUsers(d.users || []); } finally { setLoading(false); } }, [H]);
   const loadVisits = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=visits`, { headers: H() }); const d = await r.json(); if (r.ok) setVisits(d.visits || []); } finally { setLoading(false); } }, [H]);
+
+  const loadShopOrders = useCallback(async (q = "", st = "") => {
+    setShopOrdersLoading(true);
+    try {
+      const r = await fetch(`${SHOP_URL}?action=all_orders&search=${encodeURIComponent(q)}&status=${encodeURIComponent(st)}`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) { setShopOrders(d.orders || []); setShopOrdersTotal(d.total || 0); setShopRevenue(d.total_revenue || 0); }
+    } finally { setShopOrdersLoading(false); }
+  }, [H]);
 
   const loadAdminWallets = useCallback(async (q = "") => {
     setWalletsLoading(true);
@@ -197,7 +217,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "stats")    loadStats();
     if (activeTab === "users")    loadUsers();
     if (activeTab === "visits")   loadVisits();
-    if (activeTab === "wallets")  loadAdminWallets();
+    if (activeTab === "wallets")     loadAdminWallets();
+    if (activeTab === "shop_orders") loadShopOrders();
     if (activeTab === "my_mail")  loadNotifications();
     if (activeTab === "my_chat")  { loadContacts(); loadChatUsers(); }
   }, [activeTab, token]);
@@ -694,6 +715,109 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                         </div>
                       </form>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── ЗАКАЗЫ МАГАЗИНА ── */}
+            {activeTab === "shop_orders" && (
+              <div>
+                {/* Сводка */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
+                  <div className="card-dark p-4 border-t-2 border-t-primary">
+                    <div className="font-display font-black text-2xl">{shopOrdersTotal}</div>
+                    <div className="label-tag">всего заказов</div>
+                  </div>
+                  <div className="card-dark p-4 border-t-2 border-t-green-500">
+                    <div className="font-display font-black text-2xl text-green-400">{shopRevenue.toLocaleString("ru-RU")} ₽</div>
+                    <div className="label-tag">выручка</div>
+                  </div>
+                  <div className="card-dark p-4 border-t-2 border-t-border col-span-2 sm:col-span-1">
+                    <div className="font-display font-black text-2xl">{shopOrders.filter(o=>o.status==="paid").length}</div>
+                    <div className="label-tag">оплаченных</div>
+                  </div>
+                </div>
+
+                {/* Фильтры */}
+                <div className="flex gap-3 mb-5 flex-wrap">
+                  <input type="text" value={shopSearch} onChange={e=>setShopSearch(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&loadShopOrders(shopSearch,shopStatusFilter)}
+                    placeholder="Поиск по клиенту или товару..." className="input-dark flex-1" />
+                  <select value={shopStatusFilter} onChange={e=>{setShopStatusFilter(e.target.value);loadShopOrders(shopSearch,e.target.value);}}
+                    className="input-dark min-w-[160px]">
+                    <option value="">Все статусы</option>
+                    <option value="paid">Оплачен</option>
+                    <option value="pending">В обработке</option>
+                    <option value="delivered">Выдан</option>
+                    <option value="cancelled">Отменён</option>
+                  </select>
+                  <button onClick={()=>loadShopOrders(shopSearch,shopStatusFilter)} className="btn-ghost text-xs py-2 px-4">
+                    <Icon name="Search" size={14}/>Найти
+                  </button>
+                </div>
+
+                {shopOrdersLoading ? (
+                  <div className="card-dark p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary"/></div>
+                ) : (
+                  <div className="space-y-2">
+                    {shopOrders.map(o => {
+                      const statusLabel: Record<string,string> = { paid:"Оплачен", pending:"В обработке", delivered:"Выдан", cancelled:"Отменён" };
+                      const statusColor: Record<string,string> = {
+                        paid:"text-green-400 bg-green-500/10 border-green-500/20",
+                        pending:"text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+                        delivered:"text-blue-400 bg-blue-500/10 border-blue-500/20",
+                        cancelled:"text-destructive bg-destructive/10 border-destructive/20",
+                      };
+                      return (
+                        <div key={o.id} className="card-dark p-4 flex items-center gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-display font-bold text-sm uppercase tracking-wide">{o.product_title}</div>
+                            <div className="flex gap-2 mt-1 flex-wrap items-center">
+                              <span className="label-tag">#{o.id}</span>
+                              <span className="label-tag">{o.user_name}</span>
+                              <span className="label-tag">{o.user_phone}</span>
+                              <span className="label-tag">{new Date(o.created_at).toLocaleDateString("ru-RU")}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-right">
+                              <div className="font-display font-bold">{o.product_price.toLocaleString("ru-RU")} ₽</div>
+                              <div className={`text-[10px] font-display font-bold uppercase px-2 py-0.5 border mt-1 ${statusColor[o.status]||"text-muted-foreground border-border"}`}>
+                                {statusLabel[o.status]||o.status}
+                              </div>
+                            </div>
+                            {/* Смена статуса */}
+                            <select
+                              value={o.status}
+                              disabled={updatingOrder === o.id}
+                              onChange={async e => {
+                                const ns = e.target.value;
+                                setUpdatingOrder(o.id);
+                                try {
+                                  await fetch(`${SHOP_URL}?action=update_order&id=${o.id}`, {
+                                    method: "PUT", headers: H(), body: JSON.stringify({ status: ns })
+                                  });
+                                  loadShopOrders(shopSearch, shopStatusFilter);
+                                } finally { setUpdatingOrder(null); }
+                              }}
+                              className="input-dark text-xs py-1.5 px-2 min-w-[130px]"
+                            >
+                              <option value="paid">Оплачен</option>
+                              <option value="pending">В обработке</option>
+                              <option value="delivered">Выдан</option>
+                              <option value="cancelled">Отменён</option>
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {shopOrders.length===0 && (
+                      <div className="card-dark p-10 text-center text-muted-foreground">
+                        <Icon name="ShoppingBag" size={28} className="mx-auto mb-3 opacity-30"/>
+                        <p className="text-sm">Заказов нет</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

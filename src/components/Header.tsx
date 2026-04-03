@@ -3,13 +3,14 @@ import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
 const NAV = [
-  { id: "home", label: "Главная" },
-  { id: "services", label: "Услуги" },
-  { id: "prices", label: "Стоимость" },
-  { id: "booking", label: "Запись" },
-  { id: "club", label: "Клуб DD" },
+  { id: "home",      label: "Главная" },
+  { id: "services",  label: "Услуги" },
+  { id: "prices",    label: "Стоимость" },
+  { id: "booking",   label: "Запись" },
+  { id: "shop",      label: "Магазин" },
+  { id: "club",      label: "Клуб DD" },
   { id: "portfolio", label: "Портфолио" },
-  { id: "contacts", label: "Контакты" },
+  { id: "contacts",  label: "Контакты" },
 ];
 
 interface HeaderProps {
