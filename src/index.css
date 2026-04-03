@@ -117,6 +117,30 @@
     transform: scale(0.98);
   }
 
+  .btn-green {
+    background: #16a34a;
+    color: white;
+    padding: 0.8rem 2rem;
+    font-family: "Oswald", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition:
+      opacity 0.2s,
+      transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+  .btn-green:hover {
+    opacity: 0.85;
+  }
+  .btn-green:active {
+    transform: scale(0.98);
+  }
+
   .btn-ghost {
     border: 1px solid hsl(var(--border));
     color: hsl(var(--foreground));

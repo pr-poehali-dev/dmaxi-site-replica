@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 
-const AUTH_URL = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
-const CHAT_URL = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const AUTH_URL   = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
+const CHAT_URL   = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
 
 interface Visit {
   id: number; visit_number: string; service: string; car: string;
@@ -30,11 +31,12 @@ const STS_LIMIT = 2;
 const EMOJI_LIST = ["😊","😂","❤️","👍","🔥","🚗","🛠️","✅","⚠️","📞","📸","🎉","💪","🙏","😎","🤝","👌","💯","⭐","🏆","🔧","⚙️","🛞","🔑","📋","📅","💰","✨","😅","🤔"];
 
 const tabs = [
-  { id: "history", label: "История", icon: "ClipboardList" },
-  { id: "bonus", label: "Бонусы", icon: "Star" },
-  { id: "cars", label: "Автомобили", icon: "Car" },
-  { id: "mail", label: "Почта", icon: "Mail" },
-  { id: "chat", label: "Чат", icon: "MessageCircle" },
+  { id: "history",  label: "История",  icon: "ClipboardList" },
+  { id: "wallet",   label: "Кошелёк",  icon: "Wallet" },
+  { id: "bonus",    label: "Бонусы",   icon: "Star" },
+  { id: "cars",     label: "Автомобили", icon: "Car" },
+  { id: "mail",     label: "Почта",    icon: "Mail" },
+  { id: "chat",     label: "Чат",      icon: "MessageCircle" },
   { id: "settings", label: "Настройки", icon: "Settings" },
 ];
 
@@ -49,6 +51,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [notifLoading, setNotifLoading] = useState(false);
   const [unreadNotif, setUnreadNotif] = useState(0);
   const [unreadChat, setUnreadChat] = useState(0);
+
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletTxns, setWalletTxns] = useState<{type:string;amount:number;balance_after:number;description:string;created_at:string}[]>([]);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("500");
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupMsg, setTopupMsg] = useState("");
+  const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   // Chat state
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -86,11 +98,27 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     }
   }, [user]);
 
+  const loadWallet = useCallback(async () => {
+    if (!token) return;
+    setWalletLoading(true);
+    try {
+      const r = await fetch(`${WALLET_URL}?action=balance`, { headers: { "X-Auth-Token": token } });
+      const d = await r.json();
+      if (r.ok) { setWalletBalance(d.balance); setWalletTxns(d.transactions || []); }
+    } finally { setWalletLoading(false); }
+  }, [token]);
+
+  // Загрузка баланса при входе
+  useEffect(() => {
+    if (token) loadWallet();
+  }, [token]);
+
   // Загрузка данных по вкладке
   useEffect(() => {
     if (!token) return;
-    if (activeTab === "mail") loadNotifications();
-    if (activeTab === "chat") { loadContacts(); loadChatUsers(); }
+    if (activeTab === "mail")   loadNotifications();
+    if (activeTab === "chat")   { loadContacts(); loadChatUsers(); }
+    if (activeTab === "wallet") loadWallet();
   }, [activeTab, token]);
 
   // Счётчики непрочитанных
@@ -285,10 +313,17 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 </div>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <div className="text-center">
                 <div className="font-display font-bold text-2xl text-primary">{user.bonus_points}</div>
                 <div className="label-tag">баллов</div>
+              </div>
+              <div className="w-px bg-border" />
+              <div className="text-center cursor-pointer hover:opacity-80 transition-opacity" onClick={()=>setActiveTab("wallet")}>
+                <div className="font-display font-bold text-2xl text-green-400">
+                  {walletBalance !== null ? `${walletBalance.toLocaleString("ru-RU")} ₽` : "—"}
+                </div>
+                <div className="label-tag">кошелёк</div>
               </div>
               <div className="w-px bg-border" />
               <div className="text-center">
@@ -329,6 +364,153 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
           {/* Content */}
           <div className="lg:col-span-3">
+
+            {/* КОШЕЛЁК */}
+            {activeTab === "wallet" && (
+              <div>
+                <div className="label-tag mb-5">Личный кошелёк</div>
+
+                {/* Баланс */}
+                <div className="card-dark p-6 mb-5 flex items-center gap-6 flex-wrap">
+                  <div className="w-14 h-14 bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
+                    <Icon name="Wallet" size={28} className="text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="label-tag mb-1">Текущий баланс</div>
+                    <div className="font-display font-black text-4xl text-green-400">
+                      {walletLoading ? <Icon name="Loader2" size={32} className="animate-spin text-green-400/50" /> : `${(walletBalance ?? 0).toLocaleString("ru-RU")} ₽`}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">Средства можно использовать при оплате услуг автосервиса</div>
+                  </div>
+                </div>
+
+                {/* Форма пополнения */}
+                <div className="card-dark p-6 mb-5">
+                  <div className="font-display text-xs uppercase tracking-widest text-muted-foreground mb-4">Пополнить кошелёк</div>
+                  <div className="flex gap-2 flex-wrap mb-4">
+                    {[500, 1000, 2000, 5000].map(a => (
+                      <button key={a} onClick={()=>setTopupAmount(String(a))}
+                        className={`px-4 py-2 text-sm font-display font-bold border transition-colors ${topupAmount===String(a)?"border-green-500 bg-green-500/10 text-green-400":"border-border hover:border-green-500/50 text-muted-foreground hover:text-foreground"}`}>
+                        {a.toLocaleString("ru-RU")} ₽
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 flex-wrap items-end">
+                    <div className="flex-1 min-w-[160px]">
+                      <label className="label-tag mb-1.5 block">Другая сумма (от 100 до 500 000 ₽)</label>
+                      <div className="relative">
+                        <input type="number" min="100" max="500000" value={topupAmount}
+                          onChange={e=>setTopupAmount(e.target.value)}
+                          className="input-dark pr-8 w-full"
+                          placeholder="Введите сумму"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">₽</span>
+                      </div>
+                    </div>
+                    <button
+                      disabled={topupLoading || !topupAmount || Number(topupAmount) < 100}
+                      onClick={async () => {
+                        setTopupLoading(true); setTopupMsg("");
+                        try {
+                          const returnUrl = window.location.href;
+                          const r = await fetch(`${WALLET_URL}?action=create_payment`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+                            body: JSON.stringify({ amount: Number(topupAmount), return_url: returnUrl })
+                          });
+                          const d = await r.json();
+                          if (r.ok && d.confirmation_url) {
+                            setPendingOrderId(d.order_id);
+                            window.open(d.confirmation_url, "_blank");
+                            setTopupMsg(`Платёж создан на сумму ${Number(topupAmount).toLocaleString("ru-RU")} ₽. После оплаты средства зачислятся автоматически.`);
+                          } else {
+                            setTopupMsg(d.error || "Ошибка создания платежа");
+                          }
+                        } finally { setTopupLoading(false); }
+                      }}
+                      className="btn-green disabled:opacity-60 py-3 px-6 whitespace-nowrap">
+                      {topupLoading ? <><Icon name="Loader2" size={15} className="animate-spin"/>Создаём...</> : <><Icon name="CreditCard" size={15}/>Оплатить картой</>}
+                    </button>
+                  </div>
+                  {topupMsg && (
+                    <div className={`mt-3 text-xs px-3 py-2 rounded border ${topupMsg.includes("ошибка")||topupMsg.includes("Ошибка")?"border-destructive/30 bg-destructive/10 text-destructive":"border-green-500/30 bg-green-500/10 text-green-400"}`}>
+                      {topupMsg}
+                    </div>
+                  )}
+                  {pendingOrderId && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        onClick={async () => {
+                          setCheckingPayment(true);
+                          try {
+                            const r = await fetch(`${WALLET_URL}?action=check_payment&order_id=${pendingOrderId}`, {
+                              headers: { "X-Auth-Token": token || "" }
+                            });
+                            const d = await r.json();
+                            if (d.status === "succeeded") {
+                              setWalletBalance(d.balance);
+                              setTopupMsg(`Оплата подтверждена! Баланс: ${d.balance.toLocaleString("ru-RU")} ₽`);
+                              setPendingOrderId(null);
+                              loadWallet();
+                            } else if (d.status === "canceled") {
+                              setTopupMsg("Платёж отменён.");
+                              setPendingOrderId(null);
+                            } else {
+                              setTopupMsg("Платёж ещё не поступил. Попробуйте через несколько секунд.");
+                            }
+                          } finally { setCheckingPayment(false); }
+                        }}
+                        disabled={checkingPayment}
+                        className="btn-ghost text-xs py-1.5 px-3">
+                        {checkingPayment ? <Icon name="Loader2" size={13} className="animate-spin"/> : <Icon name="RefreshCw" size={13}/>}
+                        Проверить оплату
+                      </button>
+                      <span className="text-xs text-muted-foreground">Нажмите после того как оплатили</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* История транзакций */}
+                <div className="card-dark p-5">
+                  <div className="font-display text-xs uppercase tracking-widest text-muted-foreground mb-4">История операций</div>
+                  {walletLoading ? (
+                    <div className="py-8 text-center"><Icon name="Loader2" size={20} className="animate-spin mx-auto text-primary" /></div>
+                  ) : walletTxns.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground">
+                      <Icon name="Receipt" size={24} className="mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">Операций пока нет</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {walletTxns.map((t, i) => {
+                        const isCredit = t.amount > 0;
+                        const typeLabel: Record<string, string> = {
+                          topup: "Пополнение", spend: "Оплата", refund: "Возврат", admin_adjust: "Корректировка"
+                        };
+                        return (
+                          <div key={i} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+                            <div className={`w-8 h-8 flex items-center justify-center shrink-0 ${isCredit?"bg-green-500/10":"bg-destructive/10"}`}>
+                              <Icon name={isCredit?"ArrowDownLeft":"ArrowUpRight"} size={15} className={isCredit?"text-green-400":"text-destructive"} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium">{typeLabel[t.type] || t.type}</div>
+                              {t.description && <div className="text-xs text-muted-foreground truncate">{t.description}</div>}
+                              <div className="text-xs text-muted-foreground">{new Date(t.created_at).toLocaleString("ru-RU")}</div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className={`font-display font-bold text-sm ${isCredit?"text-green-400":"text-destructive"}`}>
+                                {isCredit?"+":""}{t.amount.toLocaleString("ru-RU")} ₽
+                              </div>
+                              <div className="text-xs text-muted-foreground">{t.balance_after.toLocaleString("ru-RU")} ₽</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* ИСТОРИЯ */}
             {activeTab === "history" && (

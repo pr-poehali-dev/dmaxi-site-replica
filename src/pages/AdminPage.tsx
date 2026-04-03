@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth, User } from "@/context/AuthContext";
 
-const ADMIN_URL = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
+const ADMIN_URL  = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
 const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
-const AUTH_URL  = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
-const CHAT_URL  = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const AUTH_URL   = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
+const CHAT_URL   = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
 
 /* ── interfaces ── */
 interface AdminUser {
@@ -43,6 +44,7 @@ const MANAGE_TABS = [
   { id: "stats",      label: "Дашборд",           icon: "BarChart3" },
   { id: "users",      label: "Пользователи",      icon: "Users" },
   { id: "user_mgmt",  label: "Управление",        icon: "UserCog" },
+  { id: "wallets",    label: "Кошельки",          icon: "Wallet" },
   { id: "visits",     label: "Визиты",            icon: "CalendarCheck" },
   { id: "add_visit",  label: "Добавить визит",    icon: "Plus" },
   { id: "mailing",    label: "Рассылка",          icon: "Send" },
@@ -93,6 +95,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [ghostUser, setGhostUser] = useState<User | null>(null);
   const [ghostToken, setGhostToken] = useState<string | null>(null);
 
+  /* wallets admin state */
+  const [adminWallets, setAdminWallets] = useState<{wallet_id:number;user_id:number;name:string;phone:string;email?:string;balance:number;updated_at:string}[]>([]);
+  const [adminWalletsTotal, setAdminWalletsTotal] = useState(0);
+  const [walletsLoading, setWalletsLoading] = useState(false);
+  const [walletSearch, setWalletSearch] = useState("");
+  const [adjustForm, setAdjustForm] = useState<{userId:number;userName:string;amount:string;direction:"credit"|"debit";description:string}|null>(null);
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [adjustMsg, setAdjustMsg] = useState("");
+
   /* personal state */
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifLoading,  setNotifLoading]  = useState(false);
@@ -124,6 +135,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const loadStats  = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=stats`, { headers: H() }); const d = await r.json(); if (r.ok) setStats(d); } finally { setLoading(false); } }, [H]);
   const loadUsers  = useCallback(async (q = "") => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=users&search=${encodeURIComponent(q)}`, { headers: H() }); const d = await r.json(); if (r.ok) setUsers(d.users || []); } finally { setLoading(false); } }, [H]);
   const loadVisits = useCallback(async () => { setLoading(true); try { const r = await fetch(`${ADMIN_URL}?action=visits`, { headers: H() }); const d = await r.json(); if (r.ok) setVisits(d.visits || []); } finally { setLoading(false); } }, [H]);
+
+  const loadAdminWallets = useCallback(async (q = "") => {
+    setWalletsLoading(true);
+    try {
+      const r = await fetch(`${WALLET_URL}?action=admin_wallets&search=${encodeURIComponent(q)}`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) { setAdminWallets(d.wallets || []); setAdminWalletsTotal(d.total_balance || 0); }
+    } finally { setWalletsLoading(false); }
+  }, [H]);
 
   const loadUserDetail = useCallback(async (id: number) => {
     setUserDetailLoading(true);
@@ -177,6 +197,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "stats")    loadStats();
     if (activeTab === "users")    loadUsers();
     if (activeTab === "visits")   loadVisits();
+    if (activeTab === "wallets")  loadAdminWallets();
     if (activeTab === "my_mail")  loadNotifications();
     if (activeTab === "my_chat")  { loadContacts(); loadChatUsers(); }
   }, [activeTab, token]);
@@ -540,6 +561,139 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                       </div>
                     ))}
                     {visits.length===0 && <div className="card-dark p-8 text-center text-muted-foreground"><Icon name="CalendarX" size={24} className="mx-auto mb-3" /><p className="text-sm">Визитов нет</p></div>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── КОШЕЛЬКИ ── */}
+            {activeTab === "wallets" && (
+              <div>
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="label-tag">Кошельки пользователей</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm text-muted-foreground">Общая сумма на кошельках:</div>
+                    <div className="font-display font-bold text-green-400 text-lg">{adminWalletsTotal.toLocaleString("ru-RU")} ₽</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mb-5">
+                  <input type="text" value={walletSearch} onChange={e=>setWalletSearch(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&loadAdminWallets(walletSearch)}
+                    placeholder="Поиск по имени или телефону..." className="input-dark flex-1" />
+                  <button onClick={()=>loadAdminWallets(walletSearch)} className="btn-ghost text-xs py-2 px-4">
+                    <Icon name="Search" size={14}/>Найти
+                  </button>
+                </div>
+
+                {walletsLoading ? (
+                  <div className="card-dark p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary"/></div>
+                ) : (
+                  <div className="space-y-2">
+                    {adminWallets.map(w => (
+                      <div key={w.wallet_id} className="card-dark p-4 flex items-center gap-4 flex-wrap">
+                        <div className="w-10 h-10 bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
+                          <Icon name="Wallet" size={18} className="text-green-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-display font-bold text-sm uppercase">{w.name}</div>
+                          <div className="flex gap-2 mt-0.5 flex-wrap">
+                            <span className="label-tag">{w.phone}</span>
+                            {w.email && <span className="label-tag">{w.email}</span>}
+                            <span className="label-tag text-muted-foreground/60">#{w.user_id}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 mr-4">
+                          <div className={`font-display font-bold text-xl ${w.balance>0?"text-green-400":"text-muted-foreground"}`}>
+                            {w.balance.toLocaleString("ru-RU")} ₽
+                          </div>
+                          <div className="label-tag">баланс</div>
+                        </div>
+                        <button
+                          onClick={()=>setAdjustForm({userId:w.user_id, userName:w.name, amount:"", direction:"credit", description:""})}
+                          className="btn-ghost text-xs py-1.5 px-3 shrink-0">
+                          <Icon name="PenLine" size={13}/>Корректировка
+                        </button>
+                      </div>
+                    ))}
+                    {adminWallets.length===0 && (
+                      <div className="card-dark p-10 text-center text-muted-foreground">
+                        <Icon name="Wallet" size={28} className="mx-auto mb-3 opacity-30"/>
+                        <p className="text-sm">Кошельков нет</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Модал корректировки */}
+                {adjustForm && (
+                  <div className="fixed inset-0 bg-background/80 backdrop-blur z-50 flex items-center justify-center p-4">
+                    <div className="card-dark w-full max-w-md">
+                      <div className="flex items-center justify-between p-5 border-b border-border">
+                        <div className="font-display font-bold uppercase tracking-wide text-sm">Корректировка кошелька</div>
+                        <button onClick={()=>{setAdjustForm(null);setAdjustMsg("");}} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18}/></button>
+                      </div>
+                      <form onSubmit={async e => {
+                        e.preventDefault(); setAdjustSaving(true); setAdjustMsg("");
+                        try {
+                          const r = await fetch(`${WALLET_URL}?action=admin_adjust`, {
+                            method: "POST", headers: H(),
+                            body: JSON.stringify({
+                              user_id: adjustForm.userId,
+                              amount: Number(adjustForm.amount),
+                              direction: adjustForm.direction,
+                              description: adjustForm.description || (adjustForm.direction==="credit"?"Зачисление администратором":"Списание администратором"),
+                              type: "admin_adjust"
+                            })
+                          });
+                          const d = await r.json();
+                          if (r.ok) {
+                            setAdjustMsg(`Готово! Новый баланс: ${d.new_balance.toLocaleString("ru-RU")} ₽`);
+                            loadAdminWallets(walletSearch);
+                          } else setAdjustMsg(d.error || "Ошибка");
+                        } finally { setAdjustSaving(false); }
+                      }} className="p-5 space-y-4">
+                        <div className="bg-secondary/20 rounded p-3 text-sm">
+                          <span className="text-muted-foreground">Пользователь:</span> <strong>{adjustForm.userName}</strong>
+                        </div>
+                        <div>
+                          <label className="label-tag mb-1.5 block">Тип операции</label>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={()=>setAdjustForm(f=>f?{...f,direction:"credit"}:f)}
+                              className={`flex-1 py-2.5 text-xs font-display font-bold uppercase border transition-colors ${adjustForm.direction==="credit"?"bg-green-500/10 border-green-500 text-green-400":"border-border text-muted-foreground hover:border-green-500/50"}`}>
+                              <Icon name="ArrowDownLeft" size={13} className="inline mr-1"/>Зачислить
+                            </button>
+                            <button type="button" onClick={()=>setAdjustForm(f=>f?{...f,direction:"debit"}:f)}
+                              className={`flex-1 py-2.5 text-xs font-display font-bold uppercase border transition-colors ${adjustForm.direction==="debit"?"bg-destructive/10 border-destructive text-destructive":"border-border text-muted-foreground hover:border-destructive/50"}`}>
+                              <Icon name="ArrowUpRight" size={13} className="inline mr-1"/>Списать
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label-tag mb-1.5 block">Сумма, ₽</label>
+                          <input required type="number" min="1" value={adjustForm.amount}
+                            onChange={e=>setAdjustForm(f=>f?{...f,amount:e.target.value}:f)}
+                            className="input-dark w-full" placeholder="Например: 500"/>
+                        </div>
+                        <div>
+                          <label className="label-tag mb-1.5 block">Комментарий</label>
+                          <input type="text" value={adjustForm.description}
+                            onChange={e=>setAdjustForm(f=>f?{...f,description:e.target.value}:f)}
+                            className="input-dark w-full" placeholder="Причина корректировки"/>
+                        </div>
+                        {adjustMsg && (
+                          <div className={`text-xs px-3 py-2 rounded border ${adjustMsg.startsWith("Готово")?"border-green-500/30 bg-green-500/10 text-green-400":"border-destructive/30 bg-destructive/10 text-destructive"}`}>
+                            {adjustMsg}
+                          </div>
+                        )}
+                        <div className="flex gap-3 pt-1">
+                          <button type="submit" disabled={adjustSaving} className={`flex-1 disabled:opacity-60 ${adjustForm.direction==="credit"?"btn-green":"btn-red"}`}>
+                            {adjustSaving ? <><Icon name="Loader2" size={14} className="animate-spin"/>Сохраняем...</> : adjustForm.direction==="credit" ? <><Icon name="Plus" size={14}/>Зачислить</> : <><Icon name="Minus" size={14}/>Списать</>}
+                          </button>
+                          <button type="button" onClick={()=>{setAdjustForm(null);setAdjustMsg("");}} className="btn-ghost py-2 px-4 text-xs">Отмена</button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 )}
               </div>

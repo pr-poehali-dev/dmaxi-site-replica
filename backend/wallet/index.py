@@ -1,0 +1,399 @@
+import json
+import os
+import uuid
+import base64
+import psycopg2
+import urllib.request
+import urllib.error
+from datetime import datetime
+
+SCHEMA = "t_p90995829_dmaxi_site_replica"
+MIN_TOPUP = 100    # минимальная сумма пополнения
+MAX_TOPUP = 500000 # максимальная сумма пополнения
+
+def get_db():
+    return psycopg2.connect(os.environ["DATABASE_URL"])
+
+def cors_headers():
+    return {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token",
+        "Content-Type": "application/json",
+    }
+
+def get_user_from_token(cur, token):
+    if not token:
+        return None
+    cur.execute(
+        f"SELECT u.id, u.name, u.email, u.role FROM {SCHEMA}.sessions s "
+        f"JOIN {SCHEMA}.users u ON u.id = s.user_id "
+        f"WHERE s.token = %s AND s.expires_at > NOW() AND u.is_active = true",
+        (token,)
+    )
+    return cur.fetchone()
+
+def ensure_wallet(cur, user_id):
+    """Создаёт кошелёк если не существует, возвращает (wallet_id, balance)."""
+    cur.execute(f"SELECT id, balance FROM {SCHEMA}.wallets WHERE user_id = %s", (user_id,))
+    row = cur.fetchone()
+    if row:
+        return row[0], float(row[1])
+    cur.execute(f"INSERT INTO {SCHEMA}.wallets (user_id, balance) VALUES (%s, 0) RETURNING id, balance", (user_id,))
+    row = cur.fetchone()
+    return row[0], float(row[1])
+
+def add_transaction(cur, wallet_id, user_id, txn_type, amount, new_balance, description, ref_id=None):
+    cur.execute(
+        f"INSERT INTO {SCHEMA}.wallet_transactions "
+        f"(wallet_id, user_id, type, amount, balance_after, description, ref_id) "
+        f"VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        (wallet_id, user_id, txn_type, amount, new_balance, description, ref_id)
+    )
+    return cur.fetchone()[0]
+
+def yookassa_request(method: str, path: str, body: dict = None):
+    """Запрос к API ЮКасса."""
+    shop_id    = os.environ.get("YOOKASSA_SHOP_ID", "")
+    secret_key = os.environ.get("YOOKASSA_SECRET_KEY", "")
+    if not shop_id or not secret_key:
+        raise ValueError("YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY не заданы")
+
+    credentials = base64.b64encode(f"{shop_id}:{secret_key}".encode()).decode()
+    url = f"https://api.yookassa.ru/v3{path}"
+
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "Content-Type": "application/json",
+        "Idempotence-Key": str(uuid.uuid4()),
+    }
+
+    data = json.dumps(body).encode("utf-8") if body else None
+    req  = urllib.request.Request(url, data=data, headers=headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8")
+        raise RuntimeError(f"ЮКасса {e.code}: {err_body}")
+
+def handler(event: dict, context) -> dict:
+    """Кошелёк пользователя: баланс, пополнение через ЮКасса, история транзакций"""
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": cors_headers(), "body": ""}
+
+    method  = event.get("httpMethod", "GET")
+    headers = event.get("headers") or {}
+    token   = headers.get("X-Auth-Token") or headers.get("x-auth-token")
+    params  = event.get("queryStringParameters") or {}
+    action  = params.get("action", "")
+    body    = {}
+    if event.get("body"):
+        try:
+            body = json.loads(event["body"])
+        except Exception:
+            pass
+
+    db  = get_db()
+    cur = db.cursor()
+
+    try:
+        # ── Вебхук ЮКасса (не требует авторизации) ──────────────────────
+        # POST ?action=webhook  — ЮКасса присылает уведомление об оплате
+        if method == "POST" and action == "webhook":
+            event_type = body.get("type", "")
+            obj        = body.get("object", {})
+            yk_id      = obj.get("id", "")
+            status     = obj.get("status", "")
+
+            if event_type == "notification" and status == "succeeded" and yk_id:
+                cur.execute(
+                    f"SELECT id, user_id, amount, status FROM {SCHEMA}.payment_orders WHERE yookassa_id = %s",
+                    (yk_id,)
+                )
+                order = cur.fetchone()
+                if order and order[3] == "pending":
+                    order_id, user_id, amount = order[0], order[1], float(order[2])
+
+                    # Обновляем статус заказа
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.payment_orders SET status = 'succeeded', updated_at = NOW() WHERE id = %s",
+                        (order_id,)
+                    )
+
+                    # Зачисляем на кошелёк
+                    wallet_id, old_balance = ensure_wallet(cur, user_id)
+                    new_balance = old_balance + amount
+                    cur.execute(
+                        f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
+                        (new_balance, wallet_id)
+                    )
+                    add_transaction(cur, wallet_id, user_id, "topup", amount, new_balance,
+                                    f"Пополнение через ЮКасса", yk_id)
+
+                    # Уведомление в личный кабинет
+                    cur.execute(
+                        f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
+                        (user_id, "Кошелёк пополнен",
+                         f"На ваш кошелёк зачислено {amount:,.0f} ₽. Текущий баланс: {new_balance:,.0f} ₽")
+                    )
+                    db.commit()
+
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True})}
+
+        # ── Все остальные экшны требуют авторизации ──────────────────────
+        user = get_user_from_token(cur, token)
+        if not user:
+            return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Не авторизован"})}
+        user_id, user_name, user_email, user_role = user
+
+        # GET ?action=balance — баланс и краткая история
+        if method == "GET" and action == "balance":
+            wallet_id, balance = ensure_wallet(cur, user_id)
+            db.commit()  # фиксируем создание кошелька если было
+            cur.execute(
+                f"SELECT type, amount, balance_after, description, ref_id, created_at "
+                f"FROM {SCHEMA}.wallet_transactions WHERE user_id = %s "
+                f"ORDER BY created_at DESC LIMIT 20",
+                (user_id,)
+            )
+            txns = []
+            for r in cur.fetchall():
+                txns.append({
+                    "type": r[0], "amount": float(r[1]),
+                    "balance_after": float(r[2]), "description": r[3],
+                    "ref_id": r[4], "created_at": str(r[5])
+                })
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                "balance": balance, "wallet_id": wallet_id, "transactions": txns
+            })}
+
+        # POST ?action=create_payment — создать платёж ЮКасса для пополнения
+        if method == "POST" and action == "create_payment":
+            amount      = float(body.get("amount", 0))
+            return_url  = body.get("return_url", "https://ddmaxi.ru")
+
+            if amount < MIN_TOPUP:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": f"Минимальная сумма пополнения: {MIN_TOPUP} ₽"})}
+            if amount > MAX_TOPUP:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": f"Максимальная сумма: {MAX_TOPUP} ₽"})}
+
+            # Создаём заказ в БД
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.payment_orders (user_id, amount, status) VALUES (%s, %s, 'pending') RETURNING id",
+                (user_id, amount)
+            )
+            order_id = cur.fetchone()[0]
+            db.commit()
+
+            # Создаём платёж в ЮКасса
+            try:
+                payment = yookassa_request("POST", "/payments", {
+                    "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
+                    "confirmation": {"type": "redirect", "return_url": return_url},
+                    "capture": True,
+                    "description": f"Пополнение кошелька DD MAXI — {user_name} (#{user_id})",
+                    "metadata": {"order_id": str(order_id), "user_id": str(user_id)},
+                    "receipt": {
+                        "customer": {
+                            "full_name": user_name,
+                            **({"email": user_email} if user_email else {"phone": "79000000000"}),
+                        },
+                        "items": [{
+                            "description": "Пополнение кошелька DD MAXI",
+                            "quantity": "1.00",
+                            "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
+                            "vat_code": 1,
+                            "payment_mode": "full_payment",
+                            "payment_subject": "service",
+                        }]
+                    }
+                })
+
+                yk_id      = payment.get("id")
+                confirm    = payment.get("confirmation", {})
+                confirm_url = confirm.get("confirmation_url", "")
+
+                cur.execute(
+                    f"UPDATE {SCHEMA}.payment_orders SET yookassa_id = %s, confirmation_url = %s, updated_at = NOW() WHERE id = %s",
+                    (yk_id, confirm_url, order_id)
+                )
+                db.commit()
+
+                return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                    "ok": True, "order_id": order_id, "payment_id": yk_id,
+                    "confirmation_url": confirm_url, "amount": amount
+                })}
+
+            except Exception as e:
+                # Помечаем заказ как failed чтобы не путался
+                cur.execute(f"UPDATE {SCHEMA}.payment_orders SET status = 'canceled' WHERE id = %s", (order_id,))
+                db.commit()
+                return {"statusCode": 502, "headers": cors_headers(), "body": json.dumps({
+                    "error": f"Ошибка создания платежа: {str(e)}"
+                })}
+
+        # GET ?action=check_payment&order_id=X — проверить статус платежа
+        if method == "GET" and action == "check_payment":
+            order_id = int(params.get("order_id", 0))
+            if not order_id:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Укажите order_id"})}
+
+            cur.execute(
+                f"SELECT id, yookassa_id, amount, status FROM {SCHEMA}.payment_orders "
+                f"WHERE id = %s AND user_id = %s",
+                (order_id, user_id)
+            )
+            order = cur.fetchone()
+            if not order:
+                return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Заказ не найден"})}
+
+            oid, yk_id, amount, status = order
+
+            # Если ещё pending — запрашиваем актуальный статус у ЮКасса
+            if status == "pending" and yk_id:
+                try:
+                    payment = yookassa_request("GET", f"/payments/{yk_id}")
+                    yk_status = payment.get("status", "")
+
+                    if yk_status == "succeeded":
+                        amount_val = float(payment.get("amount", {}).get("value", amount))
+                        cur.execute(
+                            f"UPDATE {SCHEMA}.payment_orders SET status = 'succeeded', updated_at = NOW() WHERE id = %s",
+                            (oid,)
+                        )
+                        # Проверяем не было ли уже зачислено через вебхук
+                        cur.execute(
+                            f"SELECT id FROM {SCHEMA}.wallet_transactions WHERE ref_id = %s",
+                            (yk_id,)
+                        )
+                        if not cur.fetchone():
+                            wallet_id, old_balance = ensure_wallet(cur, user_id)
+                            new_balance = old_balance + amount_val
+                            cur.execute(
+                                f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
+                                (new_balance, wallet_id)
+                            )
+                            add_transaction(cur, wallet_id, user_id, "topup", amount_val, new_balance,
+                                            "Пополнение через ЮКасса", yk_id)
+                            cur.execute(
+                                f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
+                                (user_id, "Кошелёк пополнен",
+                                 f"На ваш кошелёк зачислено {amount_val:,.0f} ₽. Текущий баланс: {new_balance:,.0f} ₽")
+                            )
+                        status = "succeeded"
+
+                    elif yk_status == "canceled":
+                        cur.execute(
+                            f"UPDATE {SCHEMA}.payment_orders SET status = 'canceled', updated_at = NOW() WHERE id = %s",
+                            (oid,)
+                        )
+                        status = "canceled"
+
+                    db.commit()
+                except Exception:
+                    pass
+
+            # Свежий баланс
+            cur.execute(f"SELECT balance FROM {SCHEMA}.wallets WHERE user_id = %s", (user_id,))
+            row = cur.fetchone()
+            balance = float(row[0]) if row else 0.0
+
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                "order_id": oid, "status": status, "amount": float(amount), "balance": balance
+            })}
+
+        # GET ?action=history — полная история транзакций
+        if method == "GET" and action == "history":
+            limit  = min(int(params.get("limit", 50)), 200)
+            offset = int(params.get("offset", 0))
+            cur.execute(
+                f"SELECT type, amount, balance_after, description, ref_id, created_at "
+                f"FROM {SCHEMA}.wallet_transactions WHERE user_id = %s "
+                f"ORDER BY created_at DESC LIMIT %s OFFSET %s",
+                (user_id, limit, offset)
+            )
+            txns = []
+            for r in cur.fetchall():
+                txns.append({
+                    "type": r[0], "amount": float(r[1]),
+                    "balance_after": float(r[2]), "description": r[3],
+                    "ref_id": r[4], "created_at": str(r[5])
+                })
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.wallet_transactions WHERE user_id = %s", (user_id,))
+            total = cur.fetchone()[0]
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"transactions": txns, "total": total})}
+
+        # ── Только для администратора ─────────────────────────────────────
+
+        # GET ?action=admin_wallets — список всех кошельков
+        if method == "GET" and action == "admin_wallets":
+            if user_role != "admin":
+                return {"statusCode": 403, "headers": cors_headers(), "body": json.dumps({"error": "Только для администраторов"})}
+            search = params.get("search", "")
+            query = (
+                f"SELECT w.id, w.user_id, u.name, u.phone, u.email, w.balance, w.updated_at "
+                f"FROM {SCHEMA}.wallets w JOIN {SCHEMA}.users u ON u.id = w.user_id WHERE 1=1"
+            )
+            vals = []
+            if search:
+                query += " AND (u.name ILIKE %s OR u.phone ILIKE %s)"
+                vals += [f"%{search}%", f"%{search}%"]
+            query += " ORDER BY w.balance DESC LIMIT 100"
+            cur.execute(query, vals)
+            wallets = []
+            for r in cur.fetchall():
+                wallets.append({"wallet_id": r[0], "user_id": r[1], "name": r[2], "phone": r[3], "email": r[4], "balance": float(r[5]), "updated_at": str(r[6])})
+            cur.execute(f"SELECT COALESCE(SUM(balance),0) FROM {SCHEMA}.wallets")
+            total_balance = float(cur.fetchone()[0])
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"wallets": wallets, "total_balance": total_balance})}
+
+        # POST ?action=admin_adjust — ручная корректировка баланса
+        if method == "POST" and action == "admin_adjust":
+            if user_role != "admin":
+                return {"statusCode": 403, "headers": cors_headers(), "body": json.dumps({"error": "Только для администраторов"})}
+            target_uid  = int(body.get("user_id", 0))
+            adjust_type = body.get("type", "admin_adjust")   # admin_adjust | refund | spend
+            amount      = float(body.get("amount", 0))
+            description = body.get("description", "Корректировка администратором").strip()
+            direction   = body.get("direction", "credit")    # credit | debit
+
+            if not target_uid or amount <= 0:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Укажите user_id и amount > 0"})}
+
+            wallet_id, old_balance = ensure_wallet(cur, target_uid)
+            if direction == "debit":
+                if old_balance < amount:
+                    return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Недостаточно средств на кошельке"})}
+                new_balance = old_balance - amount
+                txn_amount  = -amount
+            else:
+                new_balance = old_balance + amount
+                txn_amount  = amount
+
+            cur.execute(
+                f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
+                (new_balance, wallet_id)
+            )
+            add_transaction(cur, wallet_id, target_uid, adjust_type, txn_amount, new_balance, description, f"admin:{user_id}")
+
+            # Уведомление пользователю
+            if direction == "credit":
+                notif_body = f"Администратор зачислил {amount:,.0f} ₽ на ваш кошелёк. Баланс: {new_balance:,.0f} ₽"
+            else:
+                notif_body = f"Со счёта списано {amount:,.0f} ₽. Баланс: {new_balance:,.0f} ₽"
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
+                (target_uid, "Изменение баланса кошелька", notif_body)
+            )
+            db.commit()
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                "ok": True, "new_balance": new_balance, "old_balance": old_balance
+            })}
+
+        return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Not found"})}
+
+    finally:
+        cur.close()
+        db.close()

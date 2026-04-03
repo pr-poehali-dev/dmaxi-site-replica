@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Balance without auth",
+      "method": "GET",
+      "path": "/?action=balance",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Admin wallets without auth",
+      "method": "GET",
+      "path": "/?action=admin_wallets",
+      "expectedStatus": 401,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Webhook empty body",
+      "method": "POST",
+      "path": "/?action=webhook",
+      "body": {"type": "notification", "object": {}},
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 {
+  "wallet": "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b",
   "chat": "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8",
   "mailer": "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f",
   "auth": "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304",
