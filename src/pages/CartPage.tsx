@@ -1,211 +1,265 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-interface CartItem {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  qty: number;
-}
+// Страница онлайн-записи на ремонт (Booking)
+const timeSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
-interface CartPageProps {
-  onNavigate: (page: string) => void;
-}
-
-const initialItems: CartItem[] = [
-  { id: 1, name: "МФУ Laser Business 3500", category: "Оргтехника", price: 45600, qty: 1 },
-  { id: 2, name: "Кресло руководителя Exec Pro", category: "Мебель", price: 28900, qty: 2 },
+const serviceOptions = [
+  "Диагностика", "Замена масла и фильтров", "Ремонт двигателя",
+  "Ремонт ходовой части", "Шиномонтаж", "Кузовной ремонт",
+  "Электрика", "ТО по регламенту", "Другое",
 ];
 
-export default function CartPage({ onNavigate }: CartPageProps) {
-  const [items, setItems] = useState<CartItem[]>(initialItems);
-  const [promoCode, setPromoCode] = useState("");
-  const [promoApplied, setPromoApplied] = useState(false);
+const locations = [
+  "СТО на ул. Верхоленская",
+];
 
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const discount = promoApplied ? Math.round(subtotal * 0.1) : 0;
-  const delivery = 0;
-  const total = subtotal - discount + delivery;
+interface BookingPageProps {
+  onNavigate: (p: string) => void;
+}
 
-  const updateQty = (id: number, delta: number) => {
-    setItems(items.map((item) =>
-      item.id === id ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-    ));
+export default function CartPage({ onNavigate }: BookingPageProps) {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    service: "", car: "", name: "", phone: "", date: "", time: "", location: locations[0], comment: "",
+  });
+  const [done, setDone] = useState(false);
+
+  const handleNext = () => {
+    if (step < 3) setStep(step + 1);
+    else setDone(true);
   };
-
-  const removeItem = (id: number) => {
-    setItems(items.filter((item) => item.id !== id));
-  };
-
-  const applyPromo = () => {
-    if (promoCode.toLowerCase() === "korpus10") {
-      setPromoApplied(true);
-    }
-  };
-
-  if (items.length === 0) {
-    return (
-      <div className="animate-fade-in">
-        <div className="border-b border-border bg-secondary/30">
-          <div className="container mx-auto px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
-            <span className="cursor-pointer hover:text-foreground" onClick={() => onNavigate("home")}>Главная</span>
-            <Icon name="ChevronRight" size={12} />
-            <span className="text-foreground">Корзина</span>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 py-24 text-center">
-          <Icon name="ShoppingCart" size={56} className="mx-auto text-muted-foreground/20 mb-6" />
-          <h2 className="text-2xl font-black mb-3">Корзина пуста</h2>
-          <p className="text-muted-foreground text-sm mb-8">Добавьте товары из каталога</p>
-          <button onClick={() => onNavigate("catalog")} className="btn-primary">Перейти в каталог</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="animate-fade-in">
-      <div className="border-b border-border bg-secondary/30">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
-          <span className="cursor-pointer hover:text-foreground" onClick={() => onNavigate("home")}>Главная</span>
+      <div className="border-b border-border">
+        <div className="container mx-auto py-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <button onClick={() => onNavigate("home")} className="hover:text-foreground transition-colors font-display uppercase tracking-wide">Главная</button>
           <Icon name="ChevronRight" size={12} />
-          <span className="text-foreground">Корзина</span>
+          <span className="text-foreground font-display uppercase tracking-wide">Запись на ремонт</span>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <div className="section-label mb-1">Оформление заказа</div>
-          <h1 className="text-2xl font-black tracking-tight">Корзина</h1>
-        </div>
-
-        {/* Steps */}
-        <div className="flex items-center gap-0 mb-10 max-w-lg">
-          {["Корзина", "Оформление", "Оплата"].map((step, i) => (
-            <div key={step} className="flex items-center">
-              <div className={`flex items-center gap-2 ${i === 0 ? "text-foreground" : "text-muted-foreground"}`}>
-                <div className={`w-6 h-6 flex items-center justify-center text-xs font-bold font-mono ${i === 0 ? "bg-[hsl(var(--primary))] text-white" : "border border-border"}`}>
-                  {i + 1}
-                </div>
-                <span className="text-sm font-medium hidden sm:block">{step}</span>
-              </div>
-              {i < 2 && <div className="w-8 sm:w-12 h-px bg-border mx-2" />}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Items */}
-          <div className="lg:col-span-2 space-y-3">
-            {items.map((item) => (
-              <div key={item.id} className="product-card p-4 flex items-center gap-4">
-                <div className="w-16 h-16 bg-secondary flex items-center justify-center shrink-0">
-                  <Icon name="Package" size={24} className="text-muted-foreground/30" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="section-label mb-0.5">{item.category}</div>
-                  <div className="text-sm font-semibold truncate">{item.name}</div>
-                  <div className="text-base font-black mt-1">{(item.price * item.qty).toLocaleString("ru-RU")} ₽</div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => updateQty(item.id, -1)}
-                    className="w-7 h-7 border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                  >
-                    <Icon name="Minus" size={12} />
-                  </button>
-                  <span className="w-6 text-center text-sm font-semibold font-mono">{item.qty}</span>
-                  <button
-                    onClick={() => updateQty(item.id, 1)}
-                    className="w-7 h-7 border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                  >
-                    <Icon name="Plus" size={12} />
-                  </button>
-                </div>
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors ml-2 shrink-0"
-                >
-                  <Icon name="Trash2" size={15} />
-                </button>
-              </div>
-            ))}
-
-            {/* Promo */}
-            <div className="p-4 border border-border bg-secondary/20">
-              <div className="section-label mb-3">Промокод</div>
-              {promoApplied ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <Icon name="CheckCircle" size={16} className="text-green-600" />
-                  <span className="font-semibold">Промокод KORPUS10 применён — скидка 10%</span>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    placeholder="Введите промокод"
-                    className="flex-1 border border-border px-3 py-2 text-sm bg-background focus:outline-none focus:border-foreground/40 font-mono"
-                  />
-                  <button onClick={applyPromo} className="btn-outline px-4 py-2 text-sm">Применить</button>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">Попробуйте KORPUS10 для скидки 10%</p>
-            </div>
+      <div className="bg-card border-b border-border py-12">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="red-line" />
+            <span className="label-tag">Онлайн-запись</span>
           </div>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Запись на ремонт</h1>
+          <p className="text-muted-foreground text-sm">Заполните форму — мы перезвоним в течение 15 минут</p>
+        </div>
+      </div>
 
-          {/* Summary */}
-          <div className="lg:sticky lg:top-24 self-start">
-            <div className="border border-border bg-card p-6">
-              <div className="section-label mb-4">Итого</div>
-              <div className="space-y-3 mb-5">
+      <div className="container mx-auto section-py">
+        {done ? (
+          <div className="max-w-lg mx-auto text-center">
+            <div className="card-dark p-12">
+              <div className="w-16 h-16 bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
+                <Icon name="CheckCircle" size={36} className="text-primary" />
+              </div>
+              <h2 className="font-display font-bold text-2xl uppercase mb-3">Заявка принята!</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+                Наш менеджер свяжется с вами по номеру <strong>{form.phone}</strong> в течение 15 минут для подтверждения записи.
+              </p>
+              <div className="card-dark p-4 mb-8 text-left space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Товары ({items.reduce((s, i) => s + i.qty, 0)} шт.)</span>
-                  <span className="font-semibold">{subtotal.toLocaleString("ru-RU")} ₽</span>
+                  <span className="text-muted-foreground">Услуга:</span>
+                  <span className="font-semibold">{form.service || "—"}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Скидка по промокоду</span>
-                    <span className="font-semibold text-green-600">−{discount.toLocaleString("ru-RU")} ₽</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Доставка</span>
-                  <span className="font-semibold text-green-600">Бесплатно</span>
+                  <span className="text-muted-foreground">Дата и время:</span>
+                  <span className="font-semibold">{form.date} в {form.time}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">СТО:</span>
+                  <span className="font-semibold">{form.location}</span>
                 </div>
               </div>
-              <div className="divider-rule pt-4 mb-5">
-                <div className="flex justify-between items-center">
-                  <span className="font-black text-base">К оплате</span>
-                  <span className="font-black text-2xl">{total.toLocaleString("ru-RU")} ₽</span>
-                </div>
-              </div>
-              <button className="btn-primary w-full">Оформить заказ</button>
-              <button
-                onClick={() => onNavigate("catalog")}
-                className="w-full mt-3 text-sm text-center text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Продолжить покупки
+              <button onClick={() => onNavigate("home")} className="btn-red w-full justify-center">
+                На главную
               </button>
             </div>
-
-            {/* Trust */}
-            <div className="mt-4 space-y-2">
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            {/* Steps */}
+            <div className="flex items-center gap-0 mb-10">
               {[
-                { icon: "Shield", text: "Защита покупателя" },
-                { icon: "RefreshCw", text: "Возврат 14 дней" },
-                { icon: "Truck", text: "Доставка 1–3 дня" },
-              ].map((t) => (
-                <div key={t.text} className="flex items-center gap-2.5 text-xs text-muted-foreground">
-                  <Icon name={t.icon as "Shield"} size={13} />
-                  {t.text}
+                { n: 1, label: "Услуга и авто" },
+                { n: 2, label: "Дата и время" },
+                { n: 3, label: "Контакты" },
+              ].map((s, i) => (
+                <div key={s.n} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className={`w-8 h-8 flex items-center justify-center font-display font-bold text-sm transition-colors ${
+                      step >= s.n ? "bg-primary text-white" : "border border-border text-muted-foreground"
+                    }`}>
+                      {step > s.n ? <Icon name="Check" size={14} /> : s.n}
+                    </div>
+                    <span className={`label-tag text-center ${step >= s.n ? "text-foreground" : ""}`}>{s.label}</span>
+                  </div>
+                  {i < 2 && <div className={`flex-1 h-px mx-3 mb-5 ${step > s.n ? "bg-primary" : "bg-border"}`} />}
                 </div>
               ))}
             </div>
+
+            <div className="card-dark p-8">
+              {/* Step 1 */}
+              {step === 1 && (
+                <div className="space-y-5">
+                  <h2 className="font-display font-bold text-xl uppercase mb-6">Выберите услугу</h2>
+                  <div>
+                    <label className="label-tag mb-2 block">Вид работ *</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {serviceOptions.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setForm({ ...form, service: s })}
+                          className={`px-3 py-2.5 text-xs text-left font-display tracking-wide uppercase border transition-colors ${
+                            form.service === s
+                              ? "bg-primary border-primary text-white"
+                              : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label-tag mb-2 block">Марка и модель автомобиля *</label>
+                    <input
+                      type="text"
+                      value={form.car}
+                      onChange={(e) => setForm({ ...form, car: e.target.value })}
+                      className="input-dark"
+                      placeholder="Например: Toyota Camry 2019"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-tag mb-2 block">Комментарий (необязательно)</label>
+                    <textarea
+                      value={form.comment}
+                      onChange={(e) => setForm({ ...form, comment: e.target.value })}
+                      rows={3}
+                      className="input-dark resize-none"
+                      placeholder="Опишите проблему подробнее..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 */}
+              {step === 2 && (
+                <div className="space-y-5">
+                  <h2 className="font-display font-bold text-xl uppercase mb-6">Выберите дату и время</h2>
+                  <div>
+                    <label className="label-tag mb-2 block">СТО</label>
+                    <select
+                      value={form.location}
+                      onChange={(e) => setForm({ ...form, location: e.target.value })}
+                      className="input-dark"
+                    >
+                      {locations.map((l) => <option key={l}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label-tag mb-2 block">Дата *</label>
+                    <input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      className="input-dark"
+                      min={new Date().toISOString().split("T")[0]}
+                    />
+                  </div>
+                  <div>
+                    <label className="label-tag mb-2 block">Время *</label>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {timeSlots.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => setForm({ ...form, time: t })}
+                          className={`py-2.5 text-xs font-display tracking-wide border transition-colors ${
+                            form.time === t
+                              ? "bg-primary border-primary text-white"
+                              : "border-border text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3 */}
+              {step === 3 && (
+                <div className="space-y-5">
+                  <h2 className="font-display font-bold text-xl uppercase mb-6">Ваши контакты</h2>
+                  <div>
+                    <label className="label-tag mb-2 block">Имя *</label>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      className="input-dark"
+                      placeholder="Как к вам обращаться"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-tag mb-2 block">Телефон *</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      className="input-dark"
+                      placeholder="+7 (999) 000-00-00"
+                    />
+                  </div>
+                  <div className="card-dark p-4 space-y-2">
+                    <div className="label-tag mb-3">Ваша запись</div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Услуга:</span>
+                      <span>{form.service}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Автомобиль:</span>
+                      <span>{form.car}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Дата:</span>
+                      <span>{form.date} в {form.time}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">СТО:</span>
+                      <span>{form.location}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Нажимая «Записаться», вы соглашаетесь с <span className="underline cursor-pointer">политикой конфиденциальности</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8 pt-6 border-t border-border">
+                {step > 1 ? (
+                  <button onClick={() => setStep(step - 1)} className="btn-ghost text-sm py-2.5 px-5">
+                    ← Назад
+                  </button>
+                ) : (
+                  <div />
+                )}
+                <button onClick={handleNext} className="btn-red">
+                  {step === 3 ? "Записаться" : "Далее →"}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

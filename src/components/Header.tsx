@@ -1,154 +1,108 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-interface HeaderProps {
-  currentPage: string;
-  onNavigate: (page: string) => void;
-  cartCount: number;
-  notifCount: number;
-  searchQuery: string;
-  onSearchChange: (v: string) => void;
-}
-
-const navItems = [
+const NAV = [
   { id: "home", label: "Главная" },
-  { id: "catalog", label: "Каталог" },
   { id: "services", label: "Услуги" },
-  { id: "blog", label: "Блог" },
-  { id: "about", label: "О компании" },
-  { id: "delivery", label: "Доставка" },
+  { id: "prices", label: "Стоимость" },
+  { id: "booking", label: "Запись" },
+  { id: "club", label: "Клуб DD" },
+  { id: "portfolio", label: "Портфолио" },
   { id: "contacts", label: "Контакты" },
 ];
 
-export default function Header({ currentPage, onNavigate, cartCount, notifCount, searchQuery, onSearchChange }: HeaderProps) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+interface HeaderProps {
+  currentPage: string;
+  onNavigate: (p: string) => void;
+}
+
+export default function Header({ currentPage, onNavigate }: HeaderProps) {
+  const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-border shadow-sm">
-      {/* Top Bar */}
-      <div className="bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]">
-        <div className="container mx-auto px-4 flex items-center justify-between h-8 text-xs">
-          <span className="font-mono text-[10px] tracking-widest opacity-70">КОРПУС — ДЕЛОВЫЕ РЕШЕНИЯ</span>
-          <div className="flex items-center gap-4 opacity-80">
-            <span>+7 (800) 123-45-67</span>
-            <span className="hidden sm:inline">Пн–Пт 9:00–18:00</span>
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+      {/* Top bar */}
+      <div className="bg-primary">
+        <div className="container mx-auto flex items-center h-8 gap-6">
+          <span className="text-white/70 font-display tracking-widest text-[10px] hidden sm:block">
+            DD MAXI — СЕТЬ АВТОСЕРВИСОВ
+          </span>
+          <div className="flex items-center gap-5 ml-auto">
+            <a href="tel:+73952000000" className="flex items-center gap-1.5 text-white font-display font-semibold tracking-wide hover:text-white/80 transition-colors text-[11px]">
+              <Icon name="Phone" size={11} />
+              +7 (3952) 00-00-00
+            </a>
+            <span className="text-white/50 text-[10px] hidden md:block">Пн–Сб 9:00–21:00</span>
           </div>
         </div>
       </div>
 
-      {/* Main Header */}
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Logo */}
-          <button
-            onClick={() => onNavigate("home")}
-            className="flex items-center gap-3 shrink-0 group"
-          >
-            <div className="w-8 h-8 bg-[hsl(var(--primary))] flex items-center justify-center">
-              <span className="text-white font-black text-sm font-mono">К</span>
+      {/* Main header */}
+      <div className="container mx-auto flex items-center gap-6 h-16">
+        {/* Logo */}
+        <button onClick={() => onNavigate("home")} className="flex items-center gap-3 shrink-0">
+          <div className="relative">
+            <div className="w-10 h-10 bg-primary flex items-center justify-center">
+              <span className="text-white font-display font-black text-lg leading-none">DD</span>
             </div>
-            <div className="hidden sm:block">
-              <div className="text-lg font-black tracking-tight leading-none">КОРПУС</div>
-              <div className="section-label text-[9px]">Деловой магазин</div>
-            </div>
-          </button>
-
-          {/* Search Bar */}
-          <div className={`flex-1 max-w-xl ${searchOpen ? "flex" : "hidden md:flex"}`}>
-            <div className="relative w-full">
-              <Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Поиск товаров и услуг..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border border-border bg-background focus:outline-none focus:border-foreground/40 transition-colors"
-              />
-            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-background border border-primary" />
           </div>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setSearchOpen(!searchOpen)}
-            >
-              <Icon name="Search" size={18} />
-            </button>
-
-            {/* Notifications */}
-            <button
-              className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => onNavigate("account")}
-            >
-              <Icon name="Bell" size={18} />
-              {notifCount > 0 && <span className="cart-badge">{notifCount}</span>}
-            </button>
-
-            {/* Cart */}
-            <button
-              className="relative p-2 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => onNavigate("cart")}
-            >
-              <Icon name="ShoppingCart" size={18} />
-              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
-            </button>
-
-            {/* Account */}
-            <button
-              className="hidden sm:flex items-center gap-2 ml-1 px-3 py-1.5 border border-border text-sm font-medium hover:bg-secondary transition-colors"
-              onClick={() => onNavigate("login")}
-            >
-              <Icon name="User" size={15} />
-              <span className="hidden lg:inline">Войти</span>
-            </button>
-
-            {/* Mobile Menu */}
-            <button
-              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors ml-1"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              <Icon name={mobileOpen ? "X" : "Menu"} size={20} />
-            </button>
+          <div>
+            <div className="font-display font-bold text-xl text-foreground tracking-widest leading-tight">MAXI</div>
+            <div className="label-tag text-[9px]">автосервис</div>
           </div>
-        </div>
+        </button>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 border-t border-border h-11">
-          {navItems.map((item) => (
+        {/* Desktop nav */}
+        <nav className="hidden lg:flex items-center gap-5 flex-1">
+          {NAV.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`nav-link pb-1 ${currentPage === item.id ? "active" : ""}`}
+              className={`nav-item ${currentPage === item.id ? "active" : ""}`}
             >
               {item.label}
             </button>
           ))}
         </nav>
+
+        {/* CTA */}
+        <div className="ml-auto flex items-center gap-3">
+          <button onClick={() => onNavigate("booking")} className="btn-red hidden sm:flex text-xs py-2.5 px-5">
+            Записаться
+          </button>
+          <button onClick={() => onNavigate("club")} className="btn-ghost hidden md:flex text-xs py-2.5 px-5">
+            Клуб DD
+          </button>
+          <button
+            className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setOpen(!open)}
+          >
+            <Icon name={open ? "X" : "Menu"} size={22} />
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Nav */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-white animate-slide-down">
-          <nav className="container mx-auto px-4 py-3 flex flex-col gap-1">
-            {navItems.map((item) => (
+      {/* Mobile nav */}
+      {open && (
+        <div className="lg:hidden border-t border-border bg-card animate-slide-down">
+          <nav className="container mx-auto py-4 flex flex-col gap-1">
+            {NAV.map((item) => (
               <button
                 key={item.id}
-                onClick={() => { onNavigate(item.id); setMobileOpen(false); }}
-                className={`text-left px-3 py-2.5 text-sm font-medium transition-colors rounded ${
-                  currentPage === item.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                onClick={() => { onNavigate(item.id); setOpen(false); }}
+                className={`text-left px-3 py-3 font-display text-sm tracking-widest uppercase transition-colors ${
+                  currentPage === item.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {item.label}
               </button>
             ))}
-            <div className="divider-rule my-2" />
             <button
-              onClick={() => { onNavigate("login"); setMobileOpen(false); }}
-              className="text-left px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+              onClick={() => { onNavigate("booking"); setOpen(false); }}
+              className="btn-red mt-3 mx-3 justify-center"
             >
-              Войти / Регистрация
+              Записаться на ремонт
             </button>
           </nav>
         </div>

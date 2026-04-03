@@ -1,165 +1,129 @@
 import Icon from "@/components/ui/icon";
 
-const HERO_IMAGE = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/f4ba5a73-e09c-4e13-8508-5492ff262ea8.jpg";
-const OFFICE_IMAGE = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/bc1b03f6-c2e4-4b4c-8f3d-7b6a7e74c8ce.jpg";
+const HERO_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/2b548611-c899-4a89-b26f-7fb55a5fe719.jpg";
+const ENGINE_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/40f7e6dd-85e7-4567-b817-ddc29b084b62.jpg";
+const CLUB_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/ef0c3cfa-d990-49c5-a7c2-e939db2733c7.jpg";
 
-const categories = [
-  { icon: "Briefcase", label: "Оргтехника", count: 245 },
-  { icon: "Monitor", label: "Компьютеры", count: 189 },
-  { icon: "Printer", label: "Принтеры", count: 67 },
-  { icon: "Headphones", label: "Гарнитуры", count: 94 },
-  { icon: "Package", label: "Расходники", count: 312 },
-  { icon: "Shield", label: "Безопасность", count: 56 },
-];
-
-const featuredProducts = [
-  { id: 1, name: "Кресло руководителя Exec Pro", category: "Мебель", price: 28900, oldPrice: 34500, badge: "Хит", rating: 4.8, reviews: 124 },
-  { id: 2, name: "МФУ Laser Business 3500", category: "Оргтехника", price: 45600, oldPrice: null, badge: "Новинка", rating: 4.9, reviews: 87 },
-  { id: 3, name: "Стол переговоров Conference L", category: "Мебель", price: 67000, oldPrice: 78000, badge: null, rating: 4.7, reviews: 43 },
-  { id: 4, name: "Гарнитура Jabra BIZ 2300", category: "Связь", price: 12400, oldPrice: 14800, badge: "Скидка", rating: 4.6, reviews: 201 },
+const services = [
+  { icon: "Wrench", title: "Диагностика", desc: "Компьютерная диагностика всех систем автомобиля" },
+  { icon: "Settings", title: "Ремонт двигателя", desc: "Капитальный и текущий ремонт любых двигателей" },
+  { icon: "Droplets", title: "Замена масла", desc: "ТО и плановая замена технических жидкостей" },
+  { icon: "Circle", title: "Шиномонтаж", desc: "Балансировка, шиномонтаж, хранение шин" },
+  { icon: "Car", title: "Кузовной ремонт", desc: "Рихтовка, покраска, антикоррозийная обработка" },
+  { icon: "Zap", title: "Электрика авто", desc: "Ремонт и диагностика электрооборудования" },
 ];
 
 const stats = [
-  { value: "14+", label: "лет на рынке" },
-  { value: "8 200+", label: "позиций в каталоге" },
-  { value: "15 000+", label: "клиентов B2B" },
-  { value: "99%", label: "довольны покупкой" },
+  { val: "15+", label: "лет опыта" },
+  { val: "2 СТО", label: "в Иркутске" },
+  { val: "30 000+", label: "довольных клиентов" },
+  { val: "500+", label: "марок авто" },
+];
+
+const reviews = [
+  { name: "Алексей К.", car: "BMW 5 Series", text: "Отличный сервис, сделали всё быстро и качественно. Клубная карта реально даёт скидки.", stars: 5 },
+  { name: "Марина С.", car: "Toyota Camry", text: "Записалась онлайн, приехала — всё чётко по времени. Мастера вежливые, объяснили что делали.", stars: 5 },
+  { name: "Дмитрий П.", car: "Kia Rio", text: "Делаю ТО только здесь уже 4 года. Цены адекватные, работа сделана на совесть.", stars: 5 },
 ];
 
 interface HomePageProps {
-  onNavigate: (page: string) => void;
-  onAddToCart: () => void;
+  onNavigate: (p: string) => void;
 }
 
-export default function HomePage({ onNavigate, onAddToCart }: HomePageProps) {
+export default function HomePage({ onNavigate }: HomePageProps) {
   return (
     <div className="animate-fade-in">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-[hsl(var(--primary))] min-h-[480px] flex items-center">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--primary))] via-[hsl(var(--primary))]/90 to-transparent" />
-        <div className="relative container mx-auto px-4 py-16 lg:py-24">
+      {/* HERO */}
+      <section className="relative min-h-[580px] lg:min-h-[680px] flex items-center overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${HERO_IMG})` }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
+        <div className="absolute inset-0 stripe-bg opacity-30" />
+
+        <div className="relative container mx-auto py-20">
           <div className="max-w-xl">
-            <div className="section-label text-white/50 mb-4">Деловые решения для профессионалов</div>
-            <h1 className="text-4xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-6">
-              Всё для<br/>
-              <span className="text-[hsl(var(--corp-gold))]">вашего</span><br/>
-              бизнеса
+            <div className="flex items-center gap-3 mb-6">
+              <div className="red-line" />
+              <span className="label-tag text-primary">Профессиональный автосервис Иркутск</span>
+            </div>
+            <h1 className="font-display font-bold text-5xl lg:text-7xl text-foreground leading-none mb-5 uppercase tracking-wider">
+              DD<span className="text-primary"> MAXI</span>
             </h1>
-            <p className="text-white/70 text-base mb-8 leading-relaxed max-w-sm">
-              Профессиональная оргтехника, мебель и решения для офиса. Корпоративные поставки. Гарантия на всё.
+            <p className="text-muted-foreground text-base mb-2 font-light leading-relaxed">
+              Ремонт и обслуживание автомобилей любых марок
             </p>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => onNavigate("catalog")} className="btn-primary" style={{ background: "hsl(42, 70%, 45%)", color: "#fff" }}>
-                Перейти в каталог
+            <p className="text-sm text-muted-foreground/60 mb-10 leading-relaxed max-w-sm">
+              Более 15 лет на рынке. Гарантия на все виды работ. Клубная карта скидок для постоянных клиентов.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <button onClick={() => onNavigate("booking")} className="btn-red">
+                <Icon name="CalendarCheck" size={16} />
+                Записаться на ремонт
               </button>
-              <button onClick={() => onNavigate("services")} className="border border-white/40 text-white px-6 py-2.5 text-sm font-semibold tracking-wide uppercase hover:bg-white/10 transition-all duration-200">
-                Наши услуги
+              <button onClick={() => onNavigate("services")} className="btn-ghost">
+                <Icon name="List" size={16} />
+                Все услуги
               </button>
             </div>
           </div>
         </div>
-        {/* Декоративные линии */}
-        <div className="absolute right-0 top-0 bottom-0 w-px bg-white/5" />
-        <div className="absolute right-16 top-0 bottom-0 w-px bg-white/5" />
-        <div className="absolute right-32 top-0 bottom-0 w-px bg-white/5" />
-      </section>
 
-      {/* Stats */}
-      <section className="bg-secondary border-b border-border">
-        <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-0 lg:divide-x divide-border">
-            {stats.map((s) => (
-              <div key={s.label} className="text-center px-4">
-                <div className="text-3xl font-black text-foreground">{s.value}</div>
-                <div className="text-xs text-muted-foreground mt-1 font-mono uppercase tracking-wide">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="container mx-auto px-4 py-14">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <div className="section-label mb-1">Ассортимент</div>
-            <h2 className="text-2xl font-black tracking-tight">Категории товаров</h2>
-          </div>
-          <button onClick={() => onNavigate("catalog")} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Все категории <Icon name="ArrowRight" size={14} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {categories.map((cat) => (
-            <button
-              key={cat.label}
-              onClick={() => onNavigate("catalog")}
-              className="group product-card p-5 flex flex-col items-center gap-3 text-center"
-            >
-              <div className="w-12 h-12 bg-secondary group-hover:bg-[hsl(var(--primary))] flex items-center justify-center transition-colors duration-300">
-                <Icon name={cat.icon as any} size={22} className="text-foreground group-hover:text-white transition-colors duration-300" />
-              </div>
-              <div>
-                <div className="text-sm font-semibold">{cat.label}</div>
-                <div className="text-xs text-muted-foreground font-mono mt-0.5">{cat.count} тов.</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Featured Products */}
-      <section className="bg-secondary/50 border-y border-border py-14">
-        <div className="container mx-auto px-4">
-          <div className="flex items-end justify-between mb-8">
+        <div className="absolute right-8 bottom-8 hidden xl:flex">
+          <div className="card-dark p-5 flex items-center gap-4 border-l-2 border-l-primary">
+            <div className="w-10 h-10 bg-primary/10 flex items-center justify-center">
+              <Icon name="Phone" size={20} className="text-primary" />
+            </div>
             <div>
-              <div className="section-label mb-1">Подборка</div>
-              <h2 className="text-2xl font-black tracking-tight">Популярные товары</h2>
+              <div className="font-display font-bold text-lg tracking-wide">+7 (3952) 00-00-00</div>
+              <div className="label-tag">Пн–Сб 9:00–21:00</div>
             </div>
-            <button onClick={() => onNavigate("catalog")} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Смотреть все <Icon name="ArrowRight" size={14} />
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <div className="bg-primary">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/20">
+            {stats.map((s) => (
+              <div key={s.label} className="text-center px-6 py-5">
+                <div className="font-display font-bold text-3xl text-white">{s.val}</div>
+                <div className="text-white/60 text-[10px] tracking-widest uppercase mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* SERVICES */}
+      <section className="section-py">
+        <div className="container mx-auto">
+          <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
+            <div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="red-line" />
+                <span className="label-tag">Что мы делаем</span>
+              </div>
+              <h2 className="font-display font-bold text-3xl lg:text-4xl uppercase">Наши услуги</h2>
+            </div>
+            <button onClick={() => onNavigate("services")} className="btn-ghost text-xs py-2 px-5">
+              Полный список →
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {featuredProducts.map((p) => (
-              <div key={p.id} className="product-card group cursor-pointer" onClick={() => onNavigate("catalog")}>
-                <div className="relative aspect-square bg-gradient-to-br from-secondary to-background flex items-center justify-center overflow-hidden">
-                  <Icon name="Package" size={48} className="text-muted-foreground/30 group-hover:scale-110 transition-transform duration-300" />
-                  {p.badge && (
-                    <div className={`absolute top-3 left-3 px-2 py-0.5 text-xs font-semibold tracking-wide ${
-                      p.badge === "Хит" ? "bg-[hsl(var(--primary))] text-white" :
-                      p.badge === "Новинка" ? "bg-[hsl(var(--corp-navy))] text-white" :
-                      "bg-[hsl(var(--corp-gold))] text-white"
-                    }`}>
-                      {p.badge}
-                    </div>
-                  )}
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {services.map((s) => (
+              <div
+                key={s.title}
+                className="card-dark p-6 cursor-pointer group"
+                onClick={() => onNavigate("services")}
+              >
+                <div className="w-12 h-12 bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 group-hover:bg-primary group-hover:border-primary transition-all duration-300">
+                  <Icon name={s.icon as "Wrench"} size={22} className="text-primary group-hover:text-white transition-colors duration-300" />
                 </div>
-                <div className="p-4">
-                  <div className="section-label mb-1">{p.category}</div>
-                  <div className="text-sm font-semibold leading-tight mb-3 line-clamp-2">{p.name}</div>
-                  <div className="flex items-center gap-1 mb-3">
-                    {[1,2,3,4,5].map((s) => (
-                      <Icon key={s} name="Star" size={10} className={s <= Math.round(p.rating) ? "text-[hsl(var(--corp-gold))] fill-[hsl(var(--corp-gold))]" : "text-muted-foreground"} />
-                    ))}
-                    <span className="text-xs text-muted-foreground ml-1">({p.reviews})</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-lg font-black">{p.price.toLocaleString("ru-RU")} ₽</div>
-                      {p.oldPrice && <div className="text-xs text-muted-foreground line-through">{p.oldPrice.toLocaleString("ru-RU")} ₽</div>}
-                    </div>
-                    <button
-                      className="p-2 bg-[hsl(var(--primary))] text-white hover:opacity-80 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); onAddToCart(); }}
-                    >
-                      <Icon name="ShoppingCart" size={15} />
-                    </button>
-                  </div>
+                <h3 className="font-display font-bold text-base uppercase mb-2">{s.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                <div className="flex items-center gap-2 mt-5 text-primary text-xs font-display font-semibold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity">
+                  Подробнее <Icon name="ArrowRight" size={12} />
                 </div>
               </div>
             ))}
@@ -167,61 +131,172 @@ export default function HomePage({ onNavigate, onAddToCart }: HomePageProps) {
         </div>
       </section>
 
-      {/* About Preview */}
-      <section className="container mx-auto px-4 py-14">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="relative">
-            <div className="aspect-[4/3] overflow-hidden">
-              <img src={OFFICE_IMAGE} alt="Наш офис" className="w-full h-full object-cover" />
+      {/* BOOKING CTA */}
+      <section className="bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 stripe-bg opacity-25" />
+        <div className="relative container mx-auto py-16">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-0.5 bg-white/40" />
+                <span className="label-tag text-white/60">Онлайн-запись</span>
+              </div>
+              <h2 className="font-display font-bold text-3xl lg:text-5xl text-white uppercase leading-tight mb-4">
+                Запишитесь<br/>прямо сейчас
+              </h2>
+              <p className="text-white/70 text-sm leading-relaxed mb-8 max-w-sm">
+                Оставьте заявку — мы перезвоним в течение 15 минут и согласуем удобное время
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => onNavigate("booking")} className="bg-white text-primary font-display font-bold text-sm tracking-widest uppercase px-8 py-3 hover:bg-white/90 transition-colors">
+                  Записаться
+                </button>
+                <a href="tel:+73952000000" className="btn-ghost border-white/40 text-white hover:bg-white/10 hover:border-white hover:text-white">
+                  <Icon name="Phone" size={14} />
+                  Позвонить
+                </a>
+              </div>
             </div>
-            <div className="absolute -bottom-4 -right-4 hidden lg:block bg-[hsl(var(--primary))] text-white p-6 w-40">
-              <div className="text-3xl font-black">14+</div>
-              <div className="text-xs font-mono opacity-60 uppercase tracking-wide mt-1">лет опыта</div>
-            </div>
-          </div>
-          <div>
-            <div className="section-label mb-3">О нас</div>
-            <h2 className="text-3xl font-black tracking-tight mb-5 leading-tight">
-              Надёжный партнёр<br/>для вашего бизнеса
-            </h2>
-            <p className="text-muted-foreground leading-relaxed mb-6">
-              Компания «Корпус» специализируется на комплексном оснащении офисов и предприятий. Мы предлагаем широкий ассортимент профессионального оборудования, мебели и расходных материалов от ведущих производителей.
-            </p>
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="hidden lg:grid grid-cols-2 gap-3">
               {[
-                { icon: "CheckCircle", text: "Официальные дистрибьюторы" },
-                { icon: "Truck", text: "Доставка по всей России" },
-                { icon: "Shield", text: "Гарантия и сервис" },
-                { icon: "FileText", text: "Работа с юр. лицами" },
+                { icon: "Clock", text: "Ответ за 15 минут" },
+                { icon: "CalendarCheck", text: "Удобное время" },
+                { icon: "Shield", text: "Гарантия на работы" },
+                { icon: "Star", text: "Скидка по клубной карте" },
               ].map((f) => (
-                <div key={f.text} className="flex items-center gap-2.5 text-sm font-medium">
-                  <Icon name={f.icon as any} size={16} className="text-[hsl(var(--corp-gold))] shrink-0" />
-                  {f.text}
+                <div key={f.text} className="bg-white/10 border border-white/20 p-4 flex items-center gap-3">
+                  <Icon name={f.icon as "Clock"} size={18} className="text-white/70 shrink-0" />
+                  <span className="text-white/80 text-sm">{f.text}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => onNavigate("about")} className="btn-outline">
-              Подробнее о компании
-            </button>
           </div>
         </div>
       </section>
 
-      {/* CTA Banner */}
-      <section className="bg-[hsl(var(--primary))] py-14">
-        <div className="container mx-auto px-4 text-center">
-          <div className="section-label text-white/40 mb-3">Корпоративным клиентам</div>
-          <h2 className="text-3xl font-black text-white mb-4">Специальные условия для бизнеса</h2>
-          <p className="text-white/60 max-w-md mx-auto mb-8 text-sm leading-relaxed">
-            Корпоративные скидки, персональный менеджер и отсрочка платежа для юридических лиц
-          </p>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <button onClick={() => onNavigate("contacts")} className="btn-primary" style={{ background: "hsl(42, 70%, 45%)", color: "#fff" }}>
-              Связаться с менеджером
-            </button>
-            <button className="border border-white/30 text-white px-6 py-2.5 text-sm font-semibold tracking-wide uppercase hover:bg-white/10 transition-all duration-200">
-              Скачать прайс-лист
-            </button>
+      {/* CLUB PROMO */}
+      <section className="section-py">
+        <div className="container mx-auto">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            <div className="relative">
+              <div className="aspect-[4/3] overflow-hidden">
+                <img src={CLUB_IMG} alt="Клубная карта DD MAXI" className="w-full h-full object-cover" />
+              </div>
+              <div className="absolute -top-4 -right-4 hidden lg:flex flex-col items-center justify-center w-24 h-24 bg-primary">
+                <span className="font-display font-black text-2xl text-white leading-none">10%</span>
+                <span className="text-white/70 text-[9px] tracking-widest uppercase text-center mt-1">скидка</span>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="red-line" />
+                <span className="label-tag">Программа лояльности</span>
+              </div>
+              <h2 className="font-display font-bold text-3xl lg:text-4xl uppercase mb-5 leading-tight">
+                Клуб <span className="text-primary">DD MAXI</span>
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+                Оформите клубную карту и получайте скидки до 10% на все виды услуг. Накапливайте бонусы и обменивайте их на обслуживание автомобиля.
+              </p>
+              <div className="space-y-3 mb-8">
+                {[
+                  "Скидка до 10% на все услуги",
+                  "Накопление бонусных баллов",
+                  "Приоритетная запись без очереди",
+                  "Специальные предложения для членов клуба",
+                  "Личный кабинет с историей обслуживания",
+                ].map((b) => (
+                  <div key={b} className="flex items-center gap-3 text-sm">
+                    <div className="w-5 h-5 bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+                      <Icon name="Check" size={11} className="text-primary" />
+                    </div>
+                    {b}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={() => onNavigate("club")} className="btn-red">
+                  Получить карту клуба
+                </button>
+                <button onClick={() => onNavigate("club")} className="btn-ghost">
+                  Подробнее →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT BRIEF */}
+      <section className="bg-card border-y border-border">
+        <div className="container mx-auto section-py">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="red-line" />
+                <span className="label-tag">О компании</span>
+              </div>
+              <h2 className="font-display font-bold text-3xl lg:text-4xl uppercase mb-5 leading-tight">
+                Почему выбирают<br/>DD MAXI
+              </h2>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+                Работаем с 2009 года. Наши мастера прошли обучение у официальных дилеров и используют только сертифицированные запчасти и расходники.
+              </p>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {[
+                  { icon: "Award", text: "Гарантия на все работы" },
+                  { icon: "Users", text: "Опытные мастера" },
+                  { icon: "Package", text: "Оригинальные запчасти" },
+                  { icon: "Zap", text: "Быстрая диагностика" },
+                ].map((f) => (
+                  <div key={f.text} className="flex items-center gap-3 text-sm font-medium">
+                    <Icon name={f.icon as "Award"} size={16} className="text-primary shrink-0" />
+                    {f.text}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => onNavigate("about")} className="btn-ghost">
+                О компании →
+              </button>
+            </div>
+            <div className="relative overflow-hidden">
+              <img src={ENGINE_IMG} alt="Двигатель" className="w-full aspect-[4/3] object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* REVIEWS */}
+      <section className="section-py">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-4 mb-12">
+            <div className="red-line" />
+            <div>
+              <span className="label-tag">Что говорят клиенты</span>
+              <h2 className="font-display font-bold text-3xl uppercase mt-1">Отзывы</h2>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {reviews.map((r) => (
+              <div key={r.name} className="card-dark p-6 flex flex-col">
+                <div className="flex items-center gap-1 mb-5">
+                  {[1,2,3,4,5].map((s) => (
+                    <Icon key={s} name="Star" size={13} className="text-primary fill-primary" />
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed flex-1 mb-5 italic">«{r.text}»</p>
+                <div className="border-t border-border pt-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">{r.name}</div>
+                    <div className="label-tag mt-0.5">{r.car}</div>
+                  </div>
+                  <div className="w-8 h-8 bg-primary/10 flex items-center justify-center">
+                    <Icon name="User" size={14} className="text-primary" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

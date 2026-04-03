@@ -1,199 +1,215 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-const orders = [
-  { id: "ORD-2024-0892", date: "28.03.2024", status: "Доставлен", items: 3, total: 87400 },
-  { id: "ORD-2024-0743", date: "15.03.2024", status: "В пути", items: 1, total: 45600 },
-  { id: "ORD-2024-0621", date: "01.03.2024", status: "Доставлен", items: 5, total: 124300 },
+// Личный кабинет клиента
+const visits = [
+  { id: "V-2024-0431", date: "28.03.2024", service: "Замена масла + фильтр", car: "Toyota Camry", cost: 2400, bonus: 24 },
+  { id: "V-2024-0319", date: "15.02.2024", service: "Диагностика ходовой", car: "Toyota Camry", cost: 700, bonus: 7 },
+  { id: "V-2024-0201", date: "10.01.2024", service: "Шиномонтаж (4 колеса)", car: "Toyota Camry", cost: 2000, bonus: 20 },
 ];
 
 const notifications = [
-  { id: 1, text: "Ваш заказ ORD-2024-0743 передан курьеру", time: "2 часа назад", read: false },
-  { id: 2, text: "Новое поступление: Кресла серии Executive Pro", time: "1 день назад", read: false },
-  { id: 3, text: "Скидка 15% на оргтехнику до конца месяца", time: "3 дня назад", read: true },
-  { id: 4, text: "Ваш отзыв на МФУ Laser Business 3500 опубликован", time: "5 дней назад", read: true },
+  { text: "Пора на плановое ТО — прошло 8 000 км с последней замены масла", time: "Сегодня", read: false },
+  { text: "Ваш визит 28 марта завершён. Начислено 24 бонусных балла", time: "28 марта", read: false },
+  { text: "Акция для членов клуба: скидка 15% на шиномонтаж в апреле", time: "25 марта", read: true },
 ];
 
-const statusColors: Record<string, string> = {
-  "Доставлен": "text-green-700 bg-green-50",
-  "В пути": "text-blue-700 bg-blue-50",
-  "Обработка": "text-orange-700 bg-orange-50",
-};
+const tabs = [
+  { id: "history", label: "История визитов", icon: "ClipboardList" },
+  { id: "bonus", label: "Бонусы", icon: "Coins" },
+  { id: "notifications", label: "Уведомления", icon: "Bell", badge: 2 },
+  { id: "settings", label: "Настройки", icon: "Settings" },
+];
 
 interface AccountPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (p: string) => void;
 }
 
 export default function AccountPage({ onNavigate }: AccountPageProps) {
-  const [activeTab, setActiveTab] = useState("orders");
+  const [activeTab, setActiveTab] = useState("history");
 
-  const tabs = [
-    { id: "orders", label: "Заказы", icon: "Package" },
-    { id: "notifications", label: "Уведомления", icon: "Bell", badge: 2 },
-    { id: "reviews", label: "Отзывы", icon: "Star" },
-    { id: "settings", label: "Настройки", icon: "Settings" },
-  ];
+  const totalBonus = visits.reduce((s, v) => s + v.bonus, 0);
+  const totalSpent = visits.reduce((s, v) => s + v.cost, 0);
 
   return (
     <div className="animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="border-b border-border bg-secondary/30">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
-          <span className="hover:text-foreground cursor-pointer" onClick={() => onNavigate("home")}>Главная</span>
+      <div className="border-b border-border">
+        <div className="container mx-auto py-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <button onClick={() => onNavigate("home")} className="hover:text-foreground transition-colors font-display uppercase tracking-wide">Главная</button>
           <Icon name="ChevronRight" size={12} />
-          <span className="text-foreground">Личный кабинет</span>
+          <span className="text-foreground font-display uppercase tracking-wide">Личный кабинет</span>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Profile Header */}
-        <div className="flex items-center gap-5 mb-8 p-6 border border-border bg-card">
-          <div className="w-14 h-14 bg-[hsl(var(--primary))] flex items-center justify-center shrink-0">
-            <span className="text-white font-black text-xl font-mono">ИП</span>
-          </div>
-          <div className="flex-1">
-            <h1 className="text-lg font-black">Иван Петров</h1>
-            <div className="text-sm text-muted-foreground">ivan@company.ru · ООО «МояКомпания»</div>
-            <div className="section-label mt-1">Корпоративный клиент с 2021 года</div>
-          </div>
-          <div className="hidden sm:flex flex-col items-end gap-1">
-            <div className="text-xl font-black">3</div>
-            <div className="section-label">Заказа</div>
+      {/* Profile header */}
+      <div className="bg-card border-b border-border py-8">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-5 flex-wrap">
+            <div className="w-14 h-14 bg-primary flex items-center justify-center shrink-0">
+              <span className="text-white font-display font-black text-xl">ИП</span>
+            </div>
+            <div className="flex-1">
+              <h1 className="font-display font-bold text-xl uppercase tracking-wide">Иван Петров</h1>
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <span className="label-tag">+7 (999) 123-45-67</span>
+                <span className="label-tag">Toyota Camry</span>
+                <div className="bg-primary text-white px-2 py-0.5 text-[9px] font-display font-bold tracking-widest uppercase">Серебро</div>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="text-center">
+                <div className="font-display font-bold text-2xl text-primary">{totalBonus}</div>
+                <div className="label-tag">баллов</div>
+              </div>
+              <div className="w-px bg-border" />
+              <div className="text-center">
+                <div className="font-display font-bold text-2xl">{visits.length}</div>
+                <div className="label-tag">визита</div>
+              </div>
+              <div className="w-px bg-border" />
+              <div className="text-center">
+                <div className="font-display font-bold text-2xl">{(totalSpent / 1000).toFixed(0)}к</div>
+                <div className="label-tag">потрачено</div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="grid lg:grid-cols-4 gap-6">
+      <div className="container mx-auto section-py">
+        <div className="grid lg:grid-cols-4 gap-8">
           {/* Sidebar */}
           <aside className="lg:col-span-1">
-            <nav className="border border-border bg-card overflow-hidden">
+            <nav className="card-dark overflow-hidden">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors border-b border-border last:border-0 ${
+                  className={`w-full flex items-center gap-3 px-5 py-3.5 border-b border-border last:border-0 transition-colors ${
                     activeTab === tab.id
-                      ? "bg-[hsl(var(--primary))] text-white"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      ? "bg-primary text-white"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/30"
                   }`}
                 >
-                  <Icon name={tab.icon as "Package"} size={15} />
-                  <span className="flex-1 text-left">{tab.label}</span>
+                  <Icon name={tab.icon as "ClipboardList"} size={15} />
+                  <span className="flex-1 text-left font-display text-xs uppercase tracking-wide">{tab.label}</span>
                   {tab.badge && (
-                    <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${
-                      activeTab === tab.id ? "bg-white/20 text-white" : "bg-[hsl(var(--corp-gold))] text-white"
-                    }`}>
-                      {tab.badge}
-                    </span>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                      activeTab === tab.id ? "bg-white/20 text-white" : "bg-primary text-white"
+                    }`}>{tab.badge}</span>
                   )}
                 </button>
               ))}
             </nav>
             <button
               onClick={() => onNavigate("home")}
-              className="w-full mt-3 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground px-4 py-2 transition-colors"
+              className="w-full mt-3 flex items-center gap-2 text-xs text-muted-foreground hover:text-primary px-5 py-2.5 transition-colors font-display uppercase tracking-wide"
             >
-              <Icon name="LogOut" size={14} />
-              Выйти из аккаунта
+              <Icon name="LogOut" size={13} />
+              Выйти
             </button>
           </aside>
 
           {/* Content */}
           <div className="lg:col-span-3">
-            {activeTab === "orders" && (
+            {activeTab === "history" && (
               <div>
-                <div className="section-label mb-4">История заказов</div>
+                <div className="label-tag mb-5">История обслуживания</div>
                 <div className="space-y-3">
-                  {orders.map((order) => (
-                    <div key={order.id} className="product-card p-5">
-                      <div className="flex items-start justify-between gap-4 flex-wrap">
-                        <div>
-                          <div className="font-black font-mono text-sm">{order.id}</div>
-                          <div className="text-xs text-muted-foreground mt-1">{order.date} · {order.items} товара</div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${statusColors[order.status] || "bg-secondary text-muted-foreground"}`}>
-                            {order.status}
-                          </span>
-                          <div className="font-black text-sm">{order.total.toLocaleString("ru-RU")} ₽</div>
+                  {visits.map((v) => (
+                    <div key={v.id} className="card-dark p-5 flex items-center gap-5 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-display font-bold text-sm uppercase tracking-wide">{v.service}</div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="label-tag">{v.date}</span>
+                          <span className="label-tag">{v.car}</span>
                         </div>
                       </div>
-                      <div className="flex gap-3 mt-4">
-                        <button className="text-xs font-medium text-foreground hover:underline">Подробнее</button>
-                        {order.status === "Доставлен" && (
-                          <button className="text-xs font-medium text-muted-foreground hover:text-foreground">Повторить заказ</button>
-                        )}
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="text-right">
+                          <div className="font-display font-bold text-sm">{v.cost.toLocaleString("ru-RU")} ₽</div>
+                          <div className="label-tag text-primary">+{v.bonus} баллов</div>
+                        </div>
+                        <div className="font-mono text-xs text-muted-foreground/50">{v.id}</div>
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-6 text-center">
+                  <button onClick={() => onNavigate("booking")} className="btn-red">
+                    <Icon name="CalendarCheck" size={16} />
+                    Записаться снова
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "bonus" && (
+              <div>
+                <div className="label-tag mb-5">Бонусный счёт</div>
+                <div className="grid sm:grid-cols-3 gap-4 mb-8">
+                  {[
+                    { val: totalBonus, label: "баллов на счёте", sub: "1 балл = 1 ₽" },
+                    { val: "5%", label: "текущая скидка", sub: "Уровень: Серебро" },
+                    { val: "850", label: "баллов до Золота", sub: "Накопите ещё" },
+                  ].map((s, i) => (
+                    <div key={i} className="card-dark p-5 text-center border-t-2 border-t-primary">
+                      <div className="font-display font-bold text-3xl text-primary">{s.val}</div>
+                      <div className="text-sm mt-1">{s.label}</div>
+                      <div className="label-tag mt-1">{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="card-dark p-5">
+                  <div className="label-tag mb-4">Прогресс до следующего уровня</div>
+                  <div className="flex items-center gap-4">
+                    <span className="label-tag shrink-0">Серебро</span>
+                    <div className="flex-1 h-2 bg-secondary relative">
+                      <div className="absolute left-0 top-0 h-full bg-primary" style={{ width: "46%" }} />
+                    </div>
+                    <span className="label-tag shrink-0 text-primary">Золото</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">Ещё 850 баллов до уровня «Золото» со скидкой 10%</p>
                 </div>
               </div>
             )}
 
             {activeTab === "notifications" && (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="section-label">Уведомления</div>
-                  <button className="text-xs text-muted-foreground hover:text-foreground underline">Прочитать все</button>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="label-tag">Уведомления</div>
+                  <button className="text-xs text-muted-foreground hover:text-primary underline transition-colors">Прочитать все</button>
                 </div>
                 <div className="space-y-2">
-                  {notifications.map((n) => (
-                    <div key={n.id} className={`p-4 border border-border flex items-start gap-3 ${!n.read ? "bg-blue-50/50" : "bg-card"}`}>
-                      <div className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${!n.read ? "bg-blue-500" : "bg-transparent border border-border"}`} />
+                  {notifications.map((n, i) => (
+                    <div key={i} className={`card-dark p-5 flex items-start gap-3 ${!n.read ? "border-primary/30" : ""}`}>
+                      <div className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${!n.read ? "bg-primary" : "bg-border"}`} />
                       <div className="flex-1">
-                        <div className="text-sm">{n.text}</div>
-                        <div className="section-label mt-1">{n.time}</div>
+                        <p className="text-sm">{n.text}</p>
+                        <div className="label-tag mt-1">{n.time}</div>
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === "reviews" && (
-              <div>
-                <div className="section-label mb-4">Мои отзывы</div>
-                <div className="product-card p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="font-semibold text-sm">МФУ Laser Business 3500</div>
-                      <div className="flex gap-1 mt-1">
-                        {[1,2,3,4,5].map((s) => (
-                          <Icon key={s} name="Star" size={12} className="text-[hsl(var(--corp-gold))] fill-[hsl(var(--corp-gold))]" />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="section-label">22 марта 2024</div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Отличный принтер для офиса. Работает тихо, качество печати на высоте. Уже 3 месяца без проблем.</p>
-                </div>
-                <div className="mt-6 text-center py-8 border border-dashed border-border">
-                  <Icon name="Star" size={28} className="mx-auto text-muted-foreground/30 mb-3" />
-                  <div className="text-sm text-muted-foreground">Оставьте отзывы на купленные товары</div>
-                  <button onClick={() => onNavigate("catalog")} className="mt-3 text-xs font-medium underline text-foreground">Перейти к покупкам</button>
                 </div>
               </div>
             )}
 
             {activeTab === "settings" && (
               <div>
-                <div className="section-label mb-4">Настройки аккаунта</div>
-                <div className="space-y-4">
+                <div className="label-tag mb-5">Настройки профиля</div>
+                <div className="card-dark p-6 space-y-4">
                   {[
-                    { label: "Имя и фамилия", val: "Иван Петров" },
-                    { label: "Email", val: "ivan@company.ru" },
-                    { label: "Телефон", val: "+7 (999) 123-45-67" },
-                    { label: "Компания", val: "ООО «МояКомпания»" },
-                  ].map((field) => (
-                    <div key={field.label}>
-                      <label className="section-label mb-1 block">{field.label}</label>
-                      <input
-                        type="text"
-                        defaultValue={field.val}
-                        className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                      />
+                    { label: "Имя", val: "Иван Петров", type: "text" },
+                    { label: "Телефон", val: "+7 (999) 123-45-67", type: "tel" },
+                    { label: "Email", val: "ivan@mail.ru", type: "email" },
+                    { label: "Автомобиль", val: "Toyota Camry 2019", type: "text" },
+                  ].map((f) => (
+                    <div key={f.label}>
+                      <label className="label-tag mb-1.5 block">{f.label}</label>
+                      <input type={f.type} defaultValue={f.val} className="input-dark" />
                     </div>
                   ))}
-                  <button className="btn-primary mt-2">Сохранить изменения</button>
+                  <button className="btn-red mt-2">Сохранить</button>
                 </div>
               </div>
             )}

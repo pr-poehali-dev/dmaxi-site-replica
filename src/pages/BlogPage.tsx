@@ -1,103 +1,61 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-const posts = [
-  {
-    id: 1,
-    title: "Как выбрать МФУ для малого офиса: полное руководство 2024",
-    excerpt: "Разбираем ключевые параметры при выборе многофункционального устройства: скорость печати, расход тонера, форматы бумаги и совместимость с корпоративными системами.",
-    category: "Оргтехника",
-    date: "28 марта 2024",
-    readTime: "7 мин",
-    views: 4821,
-  },
-  {
-    id: 2,
-    title: "Эргономика рабочего места: инвестиция в продуктивность",
-    excerpt: "Исследования показывают: правильно организованное рабочее место повышает продуктивность сотрудников на 20–30%. Рассказываем, с чего начать.",
-    category: "Мебель",
-    date: "22 марта 2024",
-    readTime: "5 мин",
-    views: 3140,
-  },
-  {
-    id: 3,
-    title: "Корпоративные закупки: 5 способов оптимизировать расходы",
-    excerpt: "Рассказываем об инструментах контроля закупок, договорах обслуживания и стратегиях работы с поставщиками для снижения операционных затрат.",
-    category: "Бизнес",
-    date: "15 марта 2024",
-    readTime: "9 мин",
-    views: 6305,
-  },
-  {
-    id: 4,
-    title: "Организация переговорной комнаты: технологии и оснащение",
-    excerpt: "От видеоконференций до интерактивных досок — обзор современного оборудования для эффективных переговоров и презентаций.",
-    category: "Интерьер",
-    date: "8 марта 2024",
-    readTime: "6 мин",
-    views: 2890,
-  },
-  {
-    id: 5,
-    title: "IP-телефония для бизнеса: переход с обычных телефонов",
-    excerpt: "Практическое руководство по переходу на IP-телефонию: оборудование, настройка, плюсы и минусы для компаний разного масштаба.",
-    category: "Связь",
-    date: "1 марта 2024",
-    readTime: "8 мин",
-    views: 3720,
-  },
-  {
-    id: 6,
-    title: "Техника безопасности: огнеупорные сейфы и шредеры",
-    excerpt: "Защита конфиденциальных документов и корпоративных данных. Обзор классов защиты и рекомендации по выбору.",
-    category: "Безопасность",
-    date: "22 февраля 2024",
-    readTime: "4 мин",
-    views: 1940,
-  },
+// Страница Портфолио
+const works = [
+  { id: 1, title: "Капитальный ремонт BMW E60", category: "Двигатель", desc: "Замена поршневой группы, шлифовка ГБЦ, замена прокладок", before: "Стук двигателя, дымление", result: "Двигатель как новый, гарантия 1 год" },
+  { id: 2, title: "Кузовной ремонт Toyota Camry", category: "Кузов", desc: "Рихтовка переднего бампера и правого крыла, покраска в цвет", before: "Удар в правую переднюю часть", result: "Идеальное совпадение цвета, следов не видно" },
+  { id: 3, title: "Ремонт подвески Kia Sportage", category: "Ходовая", desc: "Замена передних стоек, шаровых опор, тяг стабилизатора", before: "Стуки при езде, плохая управляемость", result: "Плавный ход, устранены все посторонние звуки" },
+  { id: 4, title: "Электрика Ford Focus 3", category: "Электрика", desc: "Диагностика и ремонт системы зажигания, замена свечей и катушки", before: "Троит двигатель, горит Check Engine", result: "Стабильная работа двигателя, ошибки устранены" },
+  { id: 5, title: "ТО Hyundai Tucson", category: "ТО", desc: "Полное ТО по регламенту: масло, фильтры, тормозные колодки", before: "Плановое обслуживание", result: "Все жидкости заменены, система тормозов проверена" },
+  { id: 6, title: "Замена ДВС Nissan X-Trail", category: "Двигатель", desc: "Снятие и установка контрактного двигателя с полной обвязкой", before: "Гидроудар, полный выход из строя", result: "Автомобиль на ходу, контрактный двигатель с гарантией" },
 ];
 
-const blogCategories = ["Все", "Оргтехника", "Мебель", "Бизнес", "Интерьер", "Связь", "Безопасность"];
+const filterCats = ["Все", "Двигатель", "Кузов", "Ходовая", "Электрика", "ТО"];
 
-export default function BlogPage() {
-  const [activeCategory, setActiveCategory] = useState("Все");
+interface PortfolioPageProps {
+  onNavigate: (p: string) => void;
+}
 
-  const filtered = activeCategory === "Все" ? posts : posts.filter((p) => p.category === activeCategory);
+export default function BlogPage({ onNavigate }: PortfolioPageProps) {
+  const [activeFilter, setActiveFilter] = useState("Все");
+
+  const filtered = activeFilter === "Все" ? works : works.filter((w) => w.category === activeFilter);
 
   return (
     <div className="animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="border-b border-border bg-secondary/30">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-2 text-xs text-muted-foreground font-mono">
-          <span className="hover:text-foreground cursor-pointer">Главная</span>
+      <div className="border-b border-border">
+        <div className="container mx-auto py-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <button onClick={() => onNavigate("home")} className="hover:text-foreground transition-colors font-display uppercase tracking-wide">Главная</button>
           <Icon name="ChevronRight" size={12} />
-          <span className="text-foreground">Блог</span>
+          <span className="text-foreground font-display uppercase tracking-wide">Портфолио</span>
         </div>
       </div>
 
-      {/* Header */}
-      <section className="bg-[hsl(var(--primary))] py-14 text-center">
-        <div className="container mx-auto px-4">
-          <div className="section-label text-white/40 mb-3">Экспертный контент</div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-4">Блог компании</h1>
-          <p className="text-white/60 max-w-md mx-auto text-sm leading-relaxed">
-            Советы по оснащению офиса, обзоры оборудования и лайфхаки для бизнеса
+      <div className="bg-card border-b border-border py-12">
+        <div className="container mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="red-line" />
+            <span className="label-tag">Наши работы</span>
+          </div>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Портфолио</h1>
+          <p className="text-muted-foreground text-sm max-w-lg">
+            Примеры выполненных работ — реальные случаи от наших мастеров
           </p>
         </div>
-      </section>
+      </div>
 
-      <div className="container mx-auto px-4 py-10">
-        {/* Category Tabs */}
-        <div className="flex gap-2 flex-wrap mb-8 pb-6 border-b border-border">
-          {blogCategories.map((cat) => (
+      <div className="container mx-auto section-py">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 mb-10">
+          {filterCats.map((cat) => (
             <button
               key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-1.5 text-sm font-medium transition-all ${
-                activeCategory === cat
-                  ? "bg-[hsl(var(--primary))] text-white"
-                  : "border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
+              onClick={() => setActiveFilter(cat)}
+              className={`font-display text-xs tracking-widest uppercase px-5 py-2 border transition-colors ${
+                activeFilter === cat
+                  ? "bg-primary border-primary text-white"
+                  : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
               }`}
             >
               {cat}
@@ -105,64 +63,41 @@ export default function BlogPage() {
           ))}
         </div>
 
-        {/* Featured Post */}
-        {activeCategory === "Все" && filtered[0] && (
-          <div className="product-card mb-8 grid md:grid-cols-2 overflow-hidden cursor-pointer group">
-            <div className="aspect-video md:aspect-auto bg-gradient-to-br from-secondary to-background flex items-center justify-center">
-              <Icon name="BookOpen" size={56} className="text-muted-foreground/20 group-hover:scale-105 transition-transform duration-300" />
-            </div>
-            <div className="p-7 flex flex-col justify-center">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="px-2 py-0.5 bg-[hsl(var(--primary))] text-white text-xs font-semibold">{filtered[0].category}</span>
-                <span className="section-label">Главное</span>
-              </div>
-              <h2 className="text-xl font-black leading-tight mb-3">{filtered[0].title}</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-5 line-clamp-3">{filtered[0].excerpt}</p>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
-                <span>{filtered[0].date}</span>
-                <span className="flex items-center gap-1"><Icon name="Clock" size={11} />{filtered[0].readTime}</span>
-                <span className="flex items-center gap-1"><Icon name="Eye" size={11} />{filtered[0].views.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Posts Grid */}
+        {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {(activeCategory === "Все" ? filtered.slice(1) : filtered).map((post) => (
-            <article key={post.id} className="product-card cursor-pointer group overflow-hidden">
-              <div className="aspect-video bg-gradient-to-br from-secondary to-background flex items-center justify-center">
-                <Icon name="FileText" size={36} className="text-muted-foreground/20 group-hover:scale-105 transition-transform duration-300" />
+          {filtered.map((work) => (
+            <div key={work.id} className="card-dark overflow-hidden group">
+              <div className="aspect-video bg-gradient-to-br from-secondary to-background flex items-center justify-center relative">
+                <Icon name="Car" size={48} className="text-muted-foreground/15 group-hover:scale-105 transition-transform duration-300" />
+                <div className="absolute top-3 left-3 bg-primary px-2.5 py-0.5">
+                  <span className="text-white text-[10px] font-display font-bold tracking-widest uppercase">{work.category}</span>
+                </div>
               </div>
               <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="section-label text-[hsl(var(--corp-gold))]">{post.category}</span>
-                  <span className="section-label">{post.readTime}</span>
-                </div>
-                <h3 className="text-sm font-black leading-tight mb-2 line-clamp-2 group-hover:text-[hsl(var(--accent))] transition-colors">{post.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 mb-4">{post.excerpt}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground font-mono">
-                  <span>{post.date}</span>
-                  <span className="flex items-center gap-1"><Icon name="Eye" size={11} />{post.views.toLocaleString()}</span>
+                <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-3">{work.title}</h3>
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">{work.desc}</p>
+                <div className="space-y-2 pt-3 border-t border-border">
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className="text-muted-foreground/60 shrink-0 w-16">Проблема:</span>
+                    <span className="text-muted-foreground">{work.before}</span>
+                  </div>
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className="text-primary shrink-0 w-16 font-semibold">Результат:</span>
+                    <span className="text-muted-foreground">{work.result}</span>
+                  </div>
                 </div>
               </div>
-            </article>
+            </div>
           ))}
         </div>
 
-        {/* Subscribe */}
-        <div className="mt-12 bg-secondary/50 border border-border p-8 text-center">
-          <div className="section-label mb-2">Рассылка</div>
-          <h3 className="text-xl font-black mb-2">Полезные материалы на почту</h3>
-          <p className="text-sm text-muted-foreground mb-5">Только экспертные статьи, без спама</p>
-          <div className="flex gap-2 max-w-sm mx-auto">
-            <input
-              type="email"
-              placeholder="your@company.ru"
-              className="flex-1 border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-            />
-            <button className="btn-primary shrink-0">Подписаться</button>
-          </div>
+        {/* CTA */}
+        <div className="mt-12 text-center">
+          <p className="text-muted-foreground text-sm mb-5">Нужен ремонт? Запишитесь онлайн прямо сейчас</p>
+          <button onClick={() => onNavigate("booking")} className="btn-red">
+            <Icon name="CalendarCheck" size={16} />
+            Записаться на ремонт
+          </button>
         </div>
       </div>
     </div>

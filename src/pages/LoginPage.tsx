@@ -1,162 +1,120 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+// Личный кабинет / Вход
 interface LoginPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (p: string) => void;
 }
 
 export default function LoginPage({ onNavigate }: LoginPageProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [form, setForm] = useState({ email: "", password: "", name: "", company: "", phone: "", confirmPassword: "" });
+  const [form, setForm] = useState({ phone: "", password: "", name: "", car: "", confirm: "" });
   const [done, setDone] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === "register") {
-      setDone(true);
-    } else {
-      onNavigate("account");
-    }
+    if (mode === "register") setDone(true);
+    else onNavigate("account");
   };
 
   return (
-    <div className="animate-fade-in min-h-[70vh] bg-secondary/20 flex items-center justify-center py-12">
+    <div className="animate-fade-in min-h-[70vh] flex items-center justify-center py-12">
       <div className="w-full max-w-md px-4">
         {done ? (
-          <div className="bg-card border border-border p-10 text-center">
-            <div className="w-14 h-14 bg-secondary flex items-center justify-center mx-auto mb-4">
-              <Icon name="CheckCircle" size={28} className="text-[hsl(var(--corp-gold))]" />
+          <div className="card-dark p-10 text-center">
+            <div className="w-14 h-14 bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-5">
+              <Icon name="CheckCircle" size={30} className="text-primary" />
             </div>
-            <h2 className="text-xl font-black mb-2">Регистрация завершена!</h2>
-            <p className="text-sm text-muted-foreground mb-6">На вашу почту отправлено письмо с подтверждением</p>
-            <button onClick={() => { setDone(false); setMode("login"); }} className="btn-primary">
-              Войти в аккаунт
+            <h2 className="font-display font-bold text-xl uppercase mb-3">Карта оформлена!</h2>
+            <p className="text-sm text-muted-foreground mb-7">
+              Ваша клубная карта DD MAXI создана. Скидки и бонусы активны с первого посещения.
+            </p>
+            <button onClick={() => { setDone(false); setMode("login"); }} className="btn-red w-full justify-center">
+              Войти в кабинет
             </button>
           </div>
         ) : (
-          <div className="bg-card border border-border">
+          <div className="card-dark overflow-hidden">
             {/* Header */}
-            <div className="bg-[hsl(var(--primary))] p-6 text-center">
-              <div className="w-10 h-10 border border-white/20 flex items-center justify-center mx-auto mb-3">
-                <span className="text-white font-black font-mono">К</span>
+            <div className="bg-primary relative overflow-hidden px-8 py-8 text-center">
+              <div className="absolute inset-0 stripe-bg opacity-30" />
+              <div className="relative">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-white/10 border border-white/20 flex items-center justify-center">
+                    <span className="text-white font-display font-black text-sm">DD</span>
+                  </div>
+                  <span className="text-white font-display font-bold text-lg tracking-widest">MAXI</span>
+                </div>
+                <div className="text-white/70 text-xs tracking-widest font-display uppercase">
+                  {mode === "login" ? "Личный кабинет" : "Получить клубную карту"}
+                </div>
               </div>
-              <h1 className="text-white font-black text-lg tracking-tight">
-                {mode === "login" ? "Вход в кабинет" : "Регистрация"}
-              </h1>
             </div>
 
             {/* Toggle */}
-            <div className="flex border-b border-border">
+            <div className="grid grid-cols-2 border-b border-border">
               <button
                 onClick={() => setMode("login")}
-                className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                  mode === "login" ? "bg-background text-foreground border-b-2 border-[hsl(var(--primary))]" : "text-muted-foreground hover:text-foreground"
+                className={`py-3.5 font-display text-xs tracking-widest uppercase transition-colors ${
+                  mode === "login" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Войти
               </button>
               <button
                 onClick={() => setMode("register")}
-                className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                  mode === "register" ? "bg-background text-foreground border-b-2 border-[hsl(var(--primary))]" : "text-muted-foreground hover:text-foreground"
+                className={`py-3.5 font-display text-xs tracking-widest uppercase transition-colors ${
+                  mode === "register" ? "text-primary border-b-2 border-primary" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Регистрация
+                Получить карту
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-8 space-y-4">
               {mode === "register" && (
                 <>
                   <div>
-                    <label className="section-label mb-1 block">Имя и фамилия *</label>
-                    <input
-                      required
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                      placeholder="Иван Петров"
-                    />
+                    <label className="label-tag mb-1.5 block">Ваше имя *</label>
+                    <input required type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-dark" placeholder="Иван Петров" />
                   </div>
                   <div>
-                    <label className="section-label mb-1 block">Компания</label>
-                    <input
-                      type="text"
-                      value={form.company}
-                      onChange={(e) => setForm({ ...form, company: e.target.value })}
-                      className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                      placeholder="ООО «Компания»"
-                    />
-                  </div>
-                  <div>
-                    <label className="section-label mb-1 block">Телефон *</label>
-                    <input
-                      required
-                      type="tel"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                      placeholder="+7 (999) 000-00-00"
-                    />
+                    <label className="label-tag mb-1.5 block">Ваш автомобиль</label>
+                    <input type="text" value={form.car} onChange={(e) => setForm({ ...form, car: e.target.value })} className="input-dark" placeholder="Toyota Camry 2020" />
                   </div>
                 </>
               )}
 
               <div>
-                <label className="section-label mb-1 block">Email *</label>
-                <input
-                  required
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                  placeholder="ivan@company.ru"
-                />
+                <label className="label-tag mb-1.5 block">Номер телефона *</label>
+                <input required type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-dark" placeholder="+7 (999) 000-00-00" />
               </div>
 
               <div>
-                <label className="section-label mb-1 block">Пароль *</label>
-                <input
-                  required
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                  placeholder="Минимум 8 символов"
-                />
+                <label className="label-tag mb-1.5 block">Пароль *</label>
+                <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input-dark" placeholder="Минимум 6 символов" />
               </div>
 
               {mode === "register" && (
                 <div>
-                  <label className="section-label mb-1 block">Повторите пароль *</label>
-                  <input
-                    required
-                    type="password"
-                    value={form.confirmPassword}
-                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                    className="w-full border border-border px-4 py-2.5 text-sm bg-background focus:outline-none focus:border-foreground/40"
-                    placeholder="Повторите пароль"
-                  />
+                  <label className="label-tag mb-1.5 block">Повторите пароль *</label>
+                  <input required type="password" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} className="input-dark" placeholder="Повторите пароль" />
                 </div>
               )}
 
               {mode === "login" && (
                 <div className="text-right">
-                  <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline">
-                    Забыли пароль?
-                  </button>
+                  <button type="button" className="text-xs text-muted-foreground hover:text-primary transition-colors">Забыли пароль?</button>
                 </div>
               )}
 
-              <button type="submit" className="btn-primary w-full">
-                {mode === "login" ? "Войти" : "Создать аккаунт"}
+              <button type="submit" className="btn-red w-full justify-center mt-2">
+                {mode === "login" ? "Войти" : "Оформить клубную карту"}
               </button>
 
               {mode === "register" && (
                 <p className="text-xs text-muted-foreground text-center">
-                  Регистрируясь, вы соглашаетесь с <span className="underline cursor-pointer">условиями</span>
+                  Регистрируясь, вы соглашаетесь с <span className="underline cursor-pointer">условиями клуба</span>
                 </p>
               )}
             </form>

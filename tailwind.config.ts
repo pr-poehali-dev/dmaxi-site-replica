@@ -19,7 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Golos Text', 'sans-serif'],
+        sans: ['Rubik', 'sans-serif'],
+        display: ['Oswald', 'sans-serif'],
         mono: ['IBM Plex Mono', 'monospace'],
       },
       colors: {
