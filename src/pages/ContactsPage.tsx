@@ -1,26 +1,26 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-
-// Страница Контакты
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 interface ContactsPageProps {
   onNavigate: (p: string) => void;
 }
 
-const locations = [
-  {
-    name: "СТО на ул. Верхоленская",
-    address: "г. Иркутск, ул. Верхоленская, д. 2",
-    phone: "+7 (3952) 00-00-00",
-    hours: "Пн–Сб 9:00–21:00",
-    isMain: true,
-  },
-];
-
 export default function ContactsPage({ onNavigate }: ContactsPageProps) {
+  const { s } = useSiteSettings();
   const [form, setForm] = useState({ name: "", phone: "", message: "" });
   const [sent, setSent] = useState(false);
   const [activeLocation, setActiveLocation] = useState(0);
+
+  const locations = [
+    {
+      name:    s("contacts", "location1_name",  "СТО на ул. Верхоленская"),
+      address: s("contacts", "location1_addr",  "г. Иркутск, ул. Верхоленская, д. 2"),
+      phone:   s("contacts", "location1_phone", "+7 (3952) 00-00-00"),
+      hours:   s("contacts", "location1_hours", "Пн–Сб 9:00–21:00"),
+      isMain:  true,
+    },
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +43,12 @@ export default function ContactsPage({ onNavigate }: ContactsPageProps) {
             <div className="red-line" />
             <span className="label-tag">Мы на связи</span>
           </div>
-          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Контакты</h1>
-          <p className="text-muted-foreground text-sm">Звоните или приезжайте — будем рады помочь</p>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">
+            {s("contacts", "title", "Контакты")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {s("contacts", "subtitle", "Звоните или приезжайте — будем рады помочь")}
+          </p>
         </div>
       </div>
 
@@ -109,7 +113,7 @@ export default function ContactsPage({ onNavigate }: ContactsPageProps) {
                 <Icon name="CalendarCheck" size={16} />
                 Записаться на ремонт
               </button>
-              <a href="tel:+73952000000" className="btn-ghost w-full justify-center">
+              <a href={`tel:${s("contacts","location1_phone","+73952000000").replace(/[^+\d]/g,"")}`} className="btn-ghost w-full justify-center">
                 <Icon name="Phone" size={16} />
                 Позвонить
               </a>
