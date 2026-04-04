@@ -16,6 +16,7 @@ import AdminPage from "@/pages/AdminPage";           // Панель админ�
 import ShopPage from "@/pages/ShopPage";             // Магазин
 import AutoGoodsPage from "@/pages/AutoGoodsPage";   // Автотовары
 import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
+import ReceiptsPage from "@/pages/ReceiptsPage";     // Хранилище чеков
 
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
 const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
@@ -140,9 +141,11 @@ export default function Index() {
       case "about":     return <AboutPage onNavigate={navigate} />;
       case "contacts":  return <ContactsPage onNavigate={navigate} />;
       case "login":     return <LoginPage onNavigate={navigate} />;
-      case "account":   return <AccountPage onNavigate={navigate} />;
-      case "admin":     return <AdminPage onNavigate={navigate} />;
-      default:          return <HomePage onNavigate={navigate} />;
+      case "account":         return <AccountPage onNavigate={navigate} />;
+      case "admin":           return <AdminPage onNavigate={navigate} />;
+      case "receipts":        return <ReceiptsPage onNavigate={navigate} />;
+      case "receipts_admin":  return <ReceiptsPage onNavigate={navigate} isAdmin />;
+      default:                return <HomePage onNavigate={navigate} />;
     }
   };
 

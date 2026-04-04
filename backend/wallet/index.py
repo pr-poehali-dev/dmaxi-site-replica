@@ -1,8 +1,9 @@
 import json
 import os
 import uuid
-# redeploy
 import base64
+import csv
+import io
 import psycopg2
 import urllib.request
 import urllib.error
@@ -52,6 +53,32 @@ def add_transaction(cur, wallet_id, user_id, txn_type, amount, new_balance, desc
         (wallet_id, user_id, txn_type, amount, new_balance, description, ref_id)
     )
     return cur.fetchone()[0]
+
+RECEIPT_TYPE_LABELS = {
+    "topup":           "Пополнение кошелька",
+    "spend":           "Оплата с кошелька",
+    "shop_wallet":     "Покупка в магазине (кошелёк)",
+    "shop_card":       "Покупка в магазине (карта)",
+    "service_card":    "Оплата услуги (карта)",
+    "service_wallet":  "Оплата услуги (кошелёк)",
+    "goods_card":      "Заказ автотовара (карта)",
+    "goods_wallet":    "Заказ автотовара (кошелёк)",
+    "admin_adjust":    "Корректировка администратором",
+}
+
+def add_receipt(cur, user_id, rtype, amount, description, ref_id=None, metadata=None):
+    """Создаёт чек и возвращает его id и номер."""
+    now = datetime.now()
+    receipt_number = f"DD-{now.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    cur.execute(
+        f"INSERT INTO {SCHEMA}.receipts "
+        f"(user_id, type, amount, description, ref_id, receipt_number, status, metadata) "
+        f"VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s) RETURNING id",
+        (user_id, rtype, abs(amount), description, ref_id, receipt_number,
+         json.dumps(metadata) if metadata else None)
+    )
+    row = cur.fetchone()
+    return row[0], receipt_number
 
 def yookassa_request(method: str, path: str, body: dict = None):
     """Запрос к API ЮКасса."""
@@ -185,6 +212,9 @@ def handler(event: dict, context) -> dict:
                             )
                             add_transaction(cur, wallet_id, user_id, "topup", amount, new_balance,
                                             "Пополнение через ЮКасса", yk_id)
+                            add_receipt(cur, user_id, "topup", amount,
+                                        "Пополнение кошелька DD MAXI через ЮКасса", yk_id,
+                                        {"payment_id": yk_id, "balance_after": new_balance})
                             cur.execute(
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'info')",
                                 (user_id, "Кошелёк пополнен",
@@ -329,6 +359,9 @@ def handler(event: dict, context) -> dict:
                             )
                             add_transaction(cur, wallet_id, user_id, "topup", amount_val, new_balance,
                                             "Пополнение через ЮКасса", yk_id)
+                            add_receipt(cur, user_id, "topup", amount_val,
+                                        "Пополнение кошелька DD MAXI через ЮКасса", yk_id,
+                                        {"payment_id": yk_id, "balance_after": new_balance})
                             cur.execute(
                                 f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
                                 (user_id, "Кошелёк пополнен",
@@ -378,6 +411,8 @@ def handler(event: dict, context) -> dict:
                 (new_balance, wallet_id)
             )
             txn_id = add_transaction(cur, wallet_id, user_id, "spend", -amount, new_balance, description)
+            _, receipt_num = add_receipt(cur, user_id, "spend", amount, description,
+                                         str(txn_id), {"balance_after": new_balance})
             cur.execute(
                 f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
                 (user_id, "Оплата с кошелька",
@@ -386,7 +421,7 @@ def handler(event: dict, context) -> dict:
             db.commit()
 
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
-                "ok": True, "txn_id": txn_id,
+                "ok": True, "txn_id": txn_id, "receipt_number": receipt_num,
                 "amount": amount, "balance_after": new_balance,
                 "message": f"Списано {amount:,.0f} ₽. Остаток: {new_balance:,.0f} ₽"
             })}
@@ -542,6 +577,154 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
                 "ok": True, "new_balance": new_balance, "old_balance": old_balance
             })}
+
+        # GET ?action=receipts — список чеков текущего пользователя
+        if method == "GET" and action == "receipts":
+            limit  = min(int(params.get("limit", 50)), 200)
+            offset = int(params.get("offset", 0))
+            cur.execute(
+                f"SELECT id, type, amount, description, ref_id, receipt_number, status, metadata, created_at "
+                f"FROM {SCHEMA}.receipts WHERE user_id = %s "
+                f"ORDER BY created_at DESC LIMIT %s OFFSET %s",
+                (user_id, limit, offset)
+            )
+            receipts = []
+            for r in cur.fetchall():
+                receipts.append({
+                    "id": r[0], "type": r[1], "type_label": RECEIPT_TYPE_LABELS.get(r[1], r[1]),
+                    "amount": float(r[2]), "description": r[3], "ref_id": r[4],
+                    "receipt_number": r[5], "status": r[6],
+                    "metadata": r[7] if r[7] else {},
+                    "created_at": str(r[8])
+                })
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.receipts WHERE user_id = %s", (user_id,))
+            total = cur.fetchone()[0]
+            return {"statusCode": 200, "headers": cors_headers(),
+                    "body": json.dumps({"receipts": receipts, "total": total})}
+
+        # GET ?action=receipt_detail&id=X — детальный чек (HTML для печати)
+        if method == "GET" and action == "receipt_detail":
+            receipt_id = int(params.get("id", 0))
+            cur.execute(
+                f"SELECT r.id, r.type, r.amount, r.description, r.ref_id, r.receipt_number, "
+                f"r.status, r.metadata, r.created_at, u.name, u.phone, u.email "
+                f"FROM {SCHEMA}.receipts r JOIN {SCHEMA}.users u ON u.id = r.user_id "
+                f"WHERE r.id = %s AND (r.user_id = %s OR %s = 'admin')",
+                (receipt_id, user_id, user_role)
+            )
+            r = cur.fetchone()
+            if not r:
+                return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Чек не найден"})}
+            receipt = {
+                "id": r[0], "type": r[1], "type_label": RECEIPT_TYPE_LABELS.get(r[1], r[1]),
+                "amount": float(r[2]), "description": r[3], "ref_id": r[4],
+                "receipt_number": r[5], "status": r[6],
+                "metadata": r[7] if r[7] else {},
+                "created_at": str(r[8]),
+                "user_name": r[9], "user_phone": r[10], "user_email": r[11]
+            }
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"receipt": receipt})}
+
+        # GET ?action=receipts_export — выгрузка CSV (Excel) транзакций
+        if method == "GET" and action == "receipts_export":
+            date_from = params.get("date_from", "")
+            date_to   = params.get("date_to", "")
+            # Для admin — можно выгрузить всех
+            if user_role == "admin" and params.get("all") == "1":
+                query = (
+                    f"SELECT r.receipt_number, u.name, u.phone, r.type, r.amount, "
+                    f"r.description, r.ref_id, r.status, r.created_at "
+                    f"FROM {SCHEMA}.receipts r JOIN {SCHEMA}.users u ON u.id = r.user_id WHERE 1=1"
+                )
+                vals = []
+            else:
+                query = (
+                    f"SELECT r.receipt_number, u.name, u.phone, r.type, r.amount, "
+                    f"r.description, r.ref_id, r.status, r.created_at "
+                    f"FROM {SCHEMA}.receipts r JOIN {SCHEMA}.users u ON u.id = r.user_id "
+                    f"WHERE r.user_id = %s"
+                )
+                vals = [user_id]
+            if date_from:
+                query += " AND r.created_at >= %s"
+                vals.append(date_from)
+            if date_to:
+                query += " AND r.created_at <= %s"
+                vals.append(date_to + " 23:59:59")
+            query += " ORDER BY r.created_at DESC LIMIT 10000"
+            cur.execute(query, vals)
+            rows = cur.fetchall()
+
+            output = io.StringIO()
+            writer = csv.writer(output, delimiter=";")
+            writer.writerow(["Номер чека", "Клиент", "Телефон", "Тип операции",
+                             "Сумма (руб)", "Описание", "Ref ID", "Статус", "Дата"])
+            for row in rows:
+                writer.writerow([
+                    row[0], row[1], row[2],
+                    RECEIPT_TYPE_LABELS.get(row[3], row[3]),
+                    f"{float(row[4]):.2f}", row[5], row[6] or "", row[7],
+                    str(row[8])[:19]
+                ])
+            csv_data = output.getvalue()
+            csv_b64  = base64.b64encode(csv_data.encode("utf-8-sig")).decode()
+
+            return {
+                "statusCode": 200,
+                "headers": {
+                    **cors_headers(),
+                    "Content-Type": "text/csv; charset=utf-8",
+                    "Content-Disposition": 'attachment; filename="receipts.csv"',
+                },
+                "body": csv_b64,
+                "isBase64Encoded": True,
+            }
+
+        # GET ?action=admin_receipts — все чеки всех пользователей (только admin)
+        if method == "GET" and action == "admin_receipts":
+            if user_role != "admin":
+                return {"statusCode": 403, "headers": cors_headers(), "body": json.dumps({"error": "Только для администраторов"})}
+            search = params.get("search", "")
+            rtype  = params.get("type", "")
+            limit  = min(int(params.get("limit", 50)), 200)
+            offset = int(params.get("offset", 0))
+            query = (
+                f"SELECT r.id, r.type, r.amount, r.description, r.ref_id, r.receipt_number, "
+                f"r.status, r.metadata, r.created_at, u.name, u.phone "
+                f"FROM {SCHEMA}.receipts r JOIN {SCHEMA}.users u ON u.id = r.user_id WHERE 1=1"
+            )
+            vals = []
+            if search:
+                query += " AND (u.name ILIKE %s OR u.phone ILIKE %s OR r.receipt_number ILIKE %s)"
+                vals += [f"%{search}%", f"%{search}%", f"%{search}%"]
+            if rtype:
+                query += " AND r.type = %s"
+                vals.append(rtype)
+            query += " ORDER BY r.created_at DESC LIMIT %s OFFSET %s"
+            vals += [limit, offset]
+            cur.execute(query, vals)
+            receipts = []
+            for r in cur.fetchall():
+                receipts.append({
+                    "id": r[0], "type": r[1], "type_label": RECEIPT_TYPE_LABELS.get(r[1], r[1]),
+                    "amount": float(r[2]), "description": r[3], "ref_id": r[4],
+                    "receipt_number": r[5], "status": r[6],
+                    "metadata": r[7] if r[7] else {},
+                    "created_at": str(r[8]),
+                    "user_name": r[9], "user_phone": r[10]
+                })
+            cquery = f"SELECT COUNT(*) FROM {SCHEMA}.receipts r JOIN {SCHEMA}.users u ON u.id = r.user_id WHERE 1=1"
+            cvals = []
+            if search:
+                cquery += " AND (u.name ILIKE %s OR u.phone ILIKE %s OR r.receipt_number ILIKE %s)"
+                cvals += [f"%{search}%", f"%{search}%", f"%{search}%"]
+            if rtype:
+                cquery += " AND r.type = %s"
+                cvals.append(rtype)
+            cur.execute(cquery, cvals)
+            total = cur.fetchone()[0]
+            return {"statusCode": 200, "headers": cors_headers(),
+                    "body": json.dumps({"receipts": receipts, "total": total})}
 
         return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Not found"})}
 

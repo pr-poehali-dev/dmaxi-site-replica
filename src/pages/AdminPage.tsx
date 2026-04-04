@@ -410,7 +410,10 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               </nav>
             </div>
 
-            <button onClick={() => { logout(); onNavigate("home"); }} className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-primary px-5 py-2.5 transition-colors font-display uppercase tracking-wide">
+            <button onClick={() => onNavigate("receipts_admin")} className="w-full flex items-center gap-2 text-xs text-green-600 hover:text-green-700 px-5 py-2.5 transition-colors font-display uppercase tracking-wide border border-green-200 hover:bg-green-50">
+              <Icon name="Receipt" size={13} />Хранилище чеков
+            </button>
+            <button onClick={() => { logout(); onNavigate("home"); }} className="w-full mt-1 flex items-center gap-2 text-xs text-muted-foreground hover:text-primary px-5 py-2.5 transition-colors font-display uppercase tracking-wide">
               <Icon name="LogOut" size={13} />Выйти
             </button>
           </aside>

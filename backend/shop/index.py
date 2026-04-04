@@ -1,7 +1,6 @@
 import json
 import os
 import uuid
-# redeploy
 import base64
 import urllib.request
 import urllib.error
@@ -39,6 +38,18 @@ def get_user_from_token(cur, token):
         (token,)
     )
     return cur.fetchone()
+
+def add_receipt(cur, user_id, rtype, amount, description, ref_id=None, metadata=None):
+    now = datetime.now()
+    receipt_number = f"DD-{now.strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+    cur.execute(
+        f"INSERT INTO {SCHEMA}.receipts "
+        f"(user_id, type, amount, description, ref_id, receipt_number, status, metadata) "
+        f"VALUES (%s, %s, %s, %s, %s, %s, 'paid', %s) RETURNING id",
+        (user_id, rtype, abs(amount), description, ref_id, receipt_number,
+         json.dumps(metadata) if metadata else None)
+    )
+    return cur.fetchone()[0], receipt_number
 
 def fetch_json(url: str) -> dict:
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -203,6 +214,9 @@ def handler(event: dict, context) -> dict:
             )
             order_id = cur.fetchone()[0]
 
+            _, receipt_num = add_receipt(cur, user_id, "shop_wallet", price,
+                                          f"Покупка в магазине DD MAXI: {title}", str(order_id),
+                                          {"product_id": product_id, "order_id": order_id, "balance_after": new_balance})
             cur.execute(
                 f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
                 (user_id, f"Покупка оформлена: {title}",
@@ -213,6 +227,7 @@ def handler(event: dict, context) -> dict:
             return resp(200, {
                 "ok": True, "order_id": order_id, "product": title,
                 "price": price, "balance_after": new_balance,
+                "receipt_number": receipt_num,
                 "message": f"Покупка успешна! Списано {price:,.0f} ₽, остаток {new_balance:,.0f} ₽"
             })
 
@@ -315,6 +330,15 @@ def handler(event: dict, context) -> dict:
                             f"UPDATE {SCHEMA}.shop_orders SET status='paid', updated_at=NOW() WHERE id=%s",
                             (order_id,)
                         )
+                        # Чек только если ещё не создан
+                        cur.execute(
+                            f"SELECT id FROM {SCHEMA}.receipts WHERE ref_id = %s",
+                            (str(order_id),)
+                        )
+                        if not cur.fetchone():
+                            add_receipt(cur, user_id, "shop_card", price,
+                                        f"Покупка в магазине DD MAXI: {title}", str(order_id),
+                                        {"product_id": None, "order_id": order_id, "payment_id": yk_id})
                         cur.execute(
                             f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'info')",
                             (user_id, f"Оплата прошла: {title}",
