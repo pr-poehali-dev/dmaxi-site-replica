@@ -1,4 +1,5 @@
 import Icon from "@/components/ui/icon";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/2b548611-c899-4a89-b26f-7fb55a5fe719.jpg";
 const ENGINE_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/40f7e6dd-85e7-4567-b817-ddc29b084b62.jpg";
@@ -31,6 +32,8 @@ interface HomePageProps {
 }
 
 export default function HomePage({ onNavigate }: HomePageProps) {
+  const { guard } = useAuthGuard();
+
   return (
     <div className="animate-fade-in">
       {/* HERO */}
@@ -55,7 +58,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               Более 15 лет на рынке. Гарантия на все виды работ. Клубная карта скидок для постоянных клиентов.
             </p>
             <div className="flex flex-wrap gap-4">
-              <button onClick={() => onNavigate("booking")} className="btn-red">
+              <button onClick={() => guard(() => onNavigate("booking"))} className="btn-red">
                 <Icon name="CalendarCheck" size={16} />
                 Записаться на ремонт
               </button>
@@ -148,7 +151,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 Оставьте заявку — мы перезвоним в течение 15 минут и согласуем удобное время
               </p>
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => onNavigate("booking")} className="bg-white text-primary font-display font-bold text-sm tracking-widest uppercase px-8 py-3 hover:bg-white/90 transition-colors">
+                <button onClick={() => guard(() => onNavigate("booking"))} className="bg-white text-primary font-display font-bold text-sm tracking-widest uppercase px-8 py-3 hover:bg-white/90 transition-colors">
                   Записаться
                 </button>
                 <a href="tel:+73952000000" className="btn-ghost border-white/40 text-white hover:bg-white/10 hover:border-white hover:text-white">
@@ -215,7 +218,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 ))}
               </div>
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => onNavigate("club")} className="btn-red">
+                <button onClick={() => guard(() => onNavigate("club"))} className="btn-red">
                   Получить карту клуба
                 </button>
                 <button onClick={() => onNavigate("club")} className="btn-ghost">

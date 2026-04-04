@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -122,10 +122,16 @@ export default function Index() {
     setTimeout(() => tryCheck(1), 1000);
   }, []);
 
-  const navigate = (page: string) => {
+  const navigate = useCallback((page: string) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }, []);
+
+  useEffect(() => {
+    const handler = () => navigate("login");
+    window.addEventListener("navigate-to-login", handler);
+    return () => window.removeEventListener("navigate-to-login", handler);
+  }, [navigate]);
 
   const renderPage = () => {
     switch (currentPage) {

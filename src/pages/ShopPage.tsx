@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
@@ -28,6 +29,7 @@ const SHOP_SECTIONS = [
 
 export default function ShopPage({ onNavigate }: ShopPageProps) {
   const { user, token } = useAuth();
+  const { guard } = useAuthGuard();
   const [products, setProducts]     = useState<Product[]>([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -225,30 +227,32 @@ export default function ShopPage({ onNavigate }: ShopPageProps) {
             </button>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {products.map(p => (
               <div key={p.id} className="card-dark overflow-hidden flex flex-col cursor-pointer group hover:border-primary/40 transition-all"
-                onClick={() => openModal(p)}>
-                <div className="relative h-44 bg-secondary/20 overflow-hidden">
+                onClick={() => guard(() => openModal(p))}>
+                <div className="relative h-28 bg-secondary/20 overflow-hidden">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Icon name="Package" size={40} className="text-muted-foreground/30" />
+                      <Icon name="Package" size={28} className="text-muted-foreground/30" />
                     </div>
                   )}
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-card/90 backdrop-blur text-[10px] font-display font-bold uppercase tracking-wider px-2 py-1 border border-border">
+                  <div className="absolute top-2 left-2">
+                    <span className="bg-card/90 backdrop-blur text-[9px] font-display font-bold uppercase tracking-wider px-1.5 py-0.5 border border-border">
                       {p.category}
                     </span>
                   </div>
                 </div>
-                <div className="p-5 flex flex-col flex-1">
-                  <h3 className="font-display font-bold text-base uppercase tracking-wide mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
-                  <p className="text-sm text-muted-foreground flex-1 line-clamp-3 mb-4">{p.description}</p>
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <div className="font-display font-black text-xl text-primary">{parseFloat(p.price).toLocaleString("ru-RU")} ₽</div>
-                    <button className="btn-ghost text-xs py-2 px-4"><Icon name="ShoppingCart" size={13} />Купить</button>
+                <div className="p-3 flex flex-col flex-1">
+                  <h3 className="font-display font-bold text-xs uppercase tracking-wide mb-1 group-hover:text-primary transition-colors line-clamp-2">{p.title}</h3>
+                  <p className="text-[11px] text-muted-foreground flex-1 line-clamp-2 mb-2">{p.description}</p>
+                  <div className="flex items-center justify-between pt-2 border-t border-border gap-1">
+                    <div className="font-display font-black text-sm text-primary">{parseFloat(p.price).toLocaleString("ru-RU")} ₽</div>
+                    <button className="shrink-0 p-1.5 border border-border hover:border-primary hover:text-primary transition-colors text-muted-foreground">
+                      <Icon name="ShoppingCart" size={12} />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -262,7 +266,7 @@ export default function ShopPage({ onNavigate }: ShopPageProps) {
             { page: "autogoods", icon: "Car", title: "Автотовары", desc: "Запчасти, масла, аксессуары и расходники" },
             { page: "servicepay", icon: "Wrench", title: "Оплата услуг", desc: "Оплатите услуги автосервиса с кошелька онлайн" },
           ].map(b => (
-            <div key={b.page} onClick={() => onNavigate(b.page)}
+            <div key={b.page} onClick={() => guard(() => onNavigate(b.page))}
               className="card-dark p-6 cursor-pointer hover:border-primary/40 transition-all group flex items-center gap-5">
               <div className="w-14 h-14 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
                 <Icon name={b.icon as "Car"} size={28} className="text-primary" />
