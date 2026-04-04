@@ -87,8 +87,8 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <Icon name="Phone" size={20} className="text-primary" />
             </div>
             <div>
-              <div className="font-display font-bold text-lg tracking-wide">+7 (3952) 00-00-00</div>
-              <div className="label-tag">Пн–Сб 9:00–21:00</div>
+              <div className="font-display font-bold text-lg tracking-wide">{s("general","phone","+7 (3952) 00-00-00")}</div>
+              <div className="label-tag">{s("general","hours","Пн–Сб 9:00–21:00")}</div>
             </div>
           </div>
         </div>
