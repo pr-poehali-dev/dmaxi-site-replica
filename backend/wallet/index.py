@@ -168,7 +168,7 @@ def handler(event: dict, context) -> dict:
             yk_id      = obj.get("id", "")
             yk_status  = obj.get("status", "")
             metadata   = obj.get("metadata", {})
-            pay_type   = metadata.get("type", "topup")  # topup | shop | service | goods
+            pay_type   = metadata.get("type", "")  # topup | shop | service | goods | "" (неизвестный)
 
             if event_type == "notification" and yk_id:
 
@@ -244,8 +244,8 @@ def handler(event: dict, context) -> dict:
                             <p>Сумма: <b style='color:#cc1a1a'>{amount_val:,.0f} ₽</b><br>Заказ #{service_order_id}</p>"""
                         )
 
-                # ── Пополнение кошелька (topup, дефолт) ─────────────────
-                else:
+                # ── Пополнение кошелька ─────────────────────────────────
+                elif pay_type == "topup" or pay_type == "":
                     if yk_status == "succeeded":
                         cur.execute(
                             f"SELECT id, user_id, amount, status FROM {SCHEMA}.payment_orders WHERE yookassa_id = %s",

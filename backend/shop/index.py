@@ -304,7 +304,7 @@ def handler(event: dict, context) -> dict:
                     "confirmation": {"type": "redirect", "return_url": return_url},
                     "capture": True,
                     "description": f"Покупка в DD MAXI: {title} (#{order_id})",
-                    "metadata": {"shop_order_id": str(order_id), "user_id": str(user_id)},
+                    "metadata": {"type": "shop", "shop_order_id": str(order_id), "user_id": str(user_id)},
                     "receipt": {
                         "customer": {
                             "full_name": user_name,

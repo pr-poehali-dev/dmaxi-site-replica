@@ -180,6 +180,12 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [myTopupLoading, setMyTopupLoading] = useState(false);
   const [myTopupMsg, setMyTopupMsg] = useState("");
 
+  /* scan history state */
+  interface ScanHistoryRow { id:number; action:string; action_label:string; amount:number|null; description:string; result:string; created_at:string; user_name:string; user_phone:string; club_card_number:string; club_level:string; }
+  const [scanHistory,      setScanHistory]      = useState<ScanHistoryRow[]>([]);
+  const [scanHistoryTotal, setScanHistoryTotal] = useState(0);
+  const [scanHistoryLoad,  setScanHistoryLoad]  = useState(false);
+
   /* qr scanner state */
   const [scannerOpen,   setScannerOpen]   = useState(false);
   const [scanResult,    setScanResult]    = useState<null|{id:number;name:string;phone:string;club_level:string;club_level_label:string;bonus_points:number;club_card_number:string;car_model?:string;wallet_balance:number;discount_percent:number;qr_token?:string}>(null);
@@ -277,6 +283,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       const d = await r.json();
       if (r.ok) setMyWalletBalance(d.balance);
     } finally { setMyWalletLoading(false); }
+  }, [H]);
+
+  const loadScanHistory = useCallback(async () => {
+    setScanHistoryLoad(true);
+    try {
+      const r = await fetch(`${CLUB_CARDS_URL}?action=scan_history&limit=30`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) { setScanHistory(d.history || []); setScanHistoryTotal(d.total || 0); }
+    } finally { setScanHistoryLoad(false); }
   }, [H]);
 
   const loadCcUsers = useCallback(async (q = "") => {
@@ -440,7 +455,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "users")    loadUsers();
     if (activeTab === "visits")   loadVisits();
     if (activeTab === "wallets")     { loadAdminWallets(); loadMyWallet(); }
-    if (activeTab === "club_cards")  loadCcUsers();
+    if (activeTab === "club_cards")  { loadCcUsers(); loadScanHistory(); }
     if (activeTab === "shop_orders") loadShopOrders();
     if (activeTab === "packages")    loadPackages();
     if (activeTab === "my_mail")  loadNotifications();
@@ -1448,7 +1463,63 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   )}
                 </div>
 
-                {/* Модал печати карты конкретного пользователя */}
+                {/* ── ИСТОРИЯ СКАНИРОВАНИЙ ── */}
+                <div className="card-dark p-5">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="label-tag">История операций по QR ({scanHistoryTotal})</div>
+                    <button onClick={loadScanHistory} className="btn-ghost text-xs py-1 px-3">
+                      <Icon name="RefreshCw" size={12}/>Обновить
+                    </button>
+                  </div>
+                  {scanHistoryLoad ? (
+                    <div className="p-8 text-center"><Icon name="Loader2" size={20} className="animate-spin mx-auto text-primary"/></div>
+                  ) : scanHistory.length === 0 ? (
+                    <div className="p-6 text-center text-muted-foreground text-sm">
+                      <Icon name="History" size={24} className="mx-auto mb-2 opacity-30"/>
+                      Операций пока нет — они появятся после сканирования карт
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {scanHistory.map(h => {
+                        const actionColor: Record<string,string> = {
+                          scan: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+                          wallet_pay: "text-green-400 bg-green-500/10 border-green-500/30",
+                          apply_discount: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
+                          confirm_visit: "text-primary bg-primary/10 border-primary/30",
+                        };
+                        const actionIcon: Record<string,string> = {
+                          scan:"QrCode", wallet_pay:"Wallet", apply_discount:"Tag", confirm_visit:"CheckCircle"
+                        };
+                        return (
+                          <div key={h.id} className="flex items-start gap-3 p-3 border border-border rounded hover:border-primary/20 transition-colors flex-wrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 border rounded shrink-0 mt-0.5 ${actionColor[h.action] || "text-muted-foreground border-border"}`}>
+                              <Icon name={(actionIcon[h.action] || "Circle") as "QrCode"} size={11} className="inline mr-1"/>
+                              {h.action_label}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-display font-bold text-xs uppercase">{h.user_name}</div>
+                              <div className="flex gap-2 flex-wrap mt-0.5">
+                                <span className="label-tag">{h.club_card_number}</span>
+                                <span className="label-tag">{h.user_phone}</span>
+                                {h.description && <span className="label-tag opacity-70">{h.description}</span>}
+                              </div>
+                              {h.result && <div className="text-xs text-muted-foreground mt-0.5">{h.result}</div>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              {h.amount !== null && (
+                                <div className={`font-bold text-sm ${h.action==="wallet_pay"||h.action==="confirm_visit"?"text-primary":"text-muted-foreground"}`}>
+                                  {h.amount.toLocaleString("ru-RU")} ₽
+                                </div>
+                              )}
+                              <div className="label-tag">{new Date(h.created_at).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {ccSelected && (
                   <div className="fixed inset-0 bg-background/80 backdrop-blur z-50 flex items-center justify-center p-4" onClick={()=>setCcSelected(null)}>
                     <div className="card-dark w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>

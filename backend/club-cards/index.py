@@ -45,6 +45,16 @@ def get_any_user(cur, token):
     )
     return cur.fetchone()
 
+def log_scan(cur, admin_id, user_id, action, amount=None, description=None, result=None):
+    try:
+        cur.execute(
+            f"INSERT INTO {SCHEMA}.qr_scan_history (admin_id, user_id, action, amount, description, result) "
+            f"VALUES (%s, %s, %s, %s, %s, %s)",
+            (admin_id, user_id, action, amount, description, result)
+        )
+    except Exception:
+        pass
+
 def ensure_wallet(cur, user_id):
     cur.execute(f"SELECT id, balance FROM {SCHEMA}.wallets WHERE user_id = %s", (user_id,))
     row = cur.fetchone()
@@ -106,6 +116,43 @@ def handler(event: dict, context) -> dict:
                 })
             }
 
+        # ── GET scan_history — история сканирований (только admin) ──────────
+        if method == "GET" and action == "scan_history":
+            admin_id = get_admin_user(cur, token)
+            if not admin_id:
+                return {"statusCode": 403, "headers": cors_headers(), "body": json.dumps({"error": "Только для администраторов"})}
+
+            limit  = int(params.get("limit", 50))
+            offset = int(params.get("offset", 0))
+
+            cur.execute(
+                f"SELECT h.id, h.action, h.amount, h.description, h.result, h.created_at, "
+                f"u.name, u.phone, u.club_card_number, u.club_level "
+                f"FROM {SCHEMA}.qr_scan_history h "
+                f"JOIN {SCHEMA}.users u ON u.id = h.user_id "
+                f"ORDER BY h.created_at DESC LIMIT %s OFFSET %s",
+                (limit, offset)
+            )
+            rows = cur.fetchall()
+            cur.execute(f"SELECT COUNT(*) FROM {SCHEMA}.qr_scan_history")
+            total = cur.fetchone()[0]
+
+            ACTION_LABELS = {
+                "scan": "Сканирование", "wallet_pay": "Оплата кошельком",
+                "apply_discount": "Скидка", "confirm_visit": "Визит подтверждён"
+            }
+            history = [{
+                "id": r[0], "action": r[1], "action_label": ACTION_LABELS.get(r[1], r[1]),
+                "amount": float(r[2]) if r[2] else None,
+                "description": r[3], "result": r[4],
+                "created_at": str(r[5]),
+                "user_name": r[6], "user_phone": r[7],
+                "club_card_number": r[8], "club_level": r[9]
+            } for r in rows]
+
+            return {"statusCode": 200, "headers": cors_headers(),
+                    "body": json.dumps({"history": history, "total": total})}
+
         # ── POST scan_qr — администратор сканирует QR, получает данные клиента ──
         # Возвращает полные данные + готовые действия (оплата, скидка)
         if method == "POST" and action == "scan_qr":
@@ -127,6 +174,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Карта не найдена или недействительна"})}
 
             wallet_id, balance = ensure_wallet(cur, u[0])
+            log_scan(cur, admin_id, u[0], "scan", None, f"Сканирование карты {u[5]}", "ok")
             db.commit()
 
             return {
@@ -183,6 +231,8 @@ def handler(event: dict, context) -> dict:
                 (user_id, "Оплата с кошелька",
                  f"С вашего кошелька списано {amount:,.0f} ₽. Остаток: {new_balance:,.0f} ₽. {description}")
             )
+            log_scan(cur, admin_id, user_id, "wallet_pay", amount, description,
+                     f"Оплачено {amount:,.0f} ₽, остаток {new_balance:,.0f} ₽")
             db.commit()
 
             return {
@@ -313,6 +363,9 @@ def handler(event: dict, context) -> dict:
                 f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'success')",
                 (user_id, "Визит подтверждён", notif_body)
             )
+            log_scan(cur, admin_id, user_id, "confirm_visit", final_amount,
+                     f"{service} (скидка {discount_pct}%, оплата: {pay_label})",
+                     f"Визит #{visit_number}, бонусов начислено: {bonus_earned}")
             db.commit()
 
             return {
