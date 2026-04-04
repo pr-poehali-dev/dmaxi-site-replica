@@ -171,6 +171,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [adjustSaving, setAdjustSaving] = useState(false);
   const [adjustMsg, setAdjustMsg] = useState("");
 
+  /* my wallet (admin topup) state */
+  const [myWalletBalance, setMyWalletBalance] = useState<number|null>(null);
+  const [myWalletLoading, setMyWalletLoading] = useState(false);
+  const [myTopupAmount, setMyTopupAmount] = useState("1000");
+  const [myTopupLoading, setMyTopupLoading] = useState(false);
+  const [myTopupMsg, setMyTopupMsg] = useState("");
+
   /* personal state */
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifLoading,  setNotifLoading]  = useState(false);
@@ -219,6 +226,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       const d = await r.json();
       if (r.ok) { setAdminWallets(d.wallets || []); setAdminWalletsTotal(d.total_balance || 0); }
     } finally { setWalletsLoading(false); }
+  }, [H]);
+
+  const loadMyWallet = useCallback(async () => {
+    setMyWalletLoading(true);
+    try {
+      const r = await fetch(`${WALLET_URL}?action=balance`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) setMyWalletBalance(d.balance);
+    } finally { setMyWalletLoading(false); }
   }, [H]);
 
   const loadUserDetail = useCallback(async (id: number) => {
@@ -273,7 +289,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "stats")    loadStats();
     if (activeTab === "users")    loadUsers();
     if (activeTab === "visits")   loadVisits();
-    if (activeTab === "wallets")     loadAdminWallets();
+    if (activeTab === "wallets")     { loadAdminWallets(); loadMyWallet(); }
     if (activeTab === "shop_orders") loadShopOrders();
     if (activeTab === "packages")    loadPackages();
     if (activeTab === "my_mail")  loadNotifications();
@@ -762,6 +778,77 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
             {/* ── КОШЕЛЬКИ ── */}
             {activeTab === "wallets" && (
               <div>
+                {/* Мой кошелёк (администратор) */}
+                <div className="card-dark p-5 mb-6 border border-primary/20">
+                  <div className="label-tag mb-4 text-primary">Мой кошелёк</div>
+                  <div className="flex items-center gap-5 flex-wrap mb-5">
+                    <div className="w-12 h-12 bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+                      <Icon name="Wallet" size={24} className="text-primary" />
+                    </div>
+                    <div>
+                      <div className="label-tag mb-0.5">Текущий баланс</div>
+                      <div className="font-display font-black text-3xl text-green-400">
+                        {myWalletLoading
+                          ? <Icon name="Loader2" size={28} className="animate-spin text-green-400/50" />
+                          : `${(myWalletBalance ?? 0).toLocaleString("ru-RU")} ₽`}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Icon name="CreditCard" size={14} className="text-muted-foreground" />
+                    <div className="font-display text-xs uppercase tracking-widest text-muted-foreground">Пополнить картой через ЮКасса</div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {[500, 1000, 2000, 5000].map(a => (
+                      <button key={a} onClick={()=>setMyTopupAmount(String(a))}
+                        className={`px-3 py-1.5 text-xs font-display font-bold border transition-colors ${myTopupAmount===String(a)?"border-primary bg-primary/10 text-primary":"border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"}`}>
+                        {a.toLocaleString("ru-RU")} ₽
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 items-end flex-wrap">
+                    <div className="flex-1 min-w-[160px]">
+                      <label className="label-tag mb-1.5 block">Другая сумма (от 100 до 500 000 ₽)</label>
+                      <div className="relative">
+                        <input type="number" min="100" max="500000" value={myTopupAmount}
+                          onChange={e=>setMyTopupAmount(e.target.value)}
+                          className="input-dark pr-8 w-full" placeholder="Введите сумму" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">₽</span>
+                      </div>
+                    </div>
+                    <button
+                      disabled={myTopupLoading || !myTopupAmount || Number(myTopupAmount) < 100}
+                      onClick={async () => {
+                        setMyTopupLoading(true); setMyTopupMsg("");
+                        try {
+                          const r = await fetch(`${WALLET_URL}?action=create_payment`, {
+                            method: "POST",
+                            headers: { ...H(), "Content-Type": "application/json" },
+                            body: JSON.stringify({ amount: Number(myTopupAmount), return_url: window.location.origin + "/?payment=success&type=topup" })
+                          });
+                          const d = await r.json();
+                          if (r.ok && d.confirmation_url) {
+                            localStorage.setItem("yk_pending_order_id", String(d.order_id));
+                            localStorage.setItem("yk_pending_type", "topup");
+                            window.location.href = d.confirmation_url;
+                          } else {
+                            setMyTopupMsg(d.error || "Ошибка создания платежа");
+                          }
+                        } finally { setMyTopupLoading(false); }
+                      }}
+                      className="btn-red disabled:opacity-60 py-2.5 px-5 whitespace-nowrap">
+                      {myTopupLoading
+                        ? <><Icon name="Loader2" size={14} className="animate-spin"/>Создаём...</>
+                        : <><Icon name="CreditCard" size={14}/>Пополнить {myTopupAmount ? `${Number(myTopupAmount).toLocaleString("ru-RU")} ₽` : ""}</>}
+                    </button>
+                  </div>
+                  {myTopupMsg && (
+                    <div className="mt-3 text-xs px-3 py-2 rounded border border-destructive/30 bg-destructive/10 text-destructive">
+                      {myTopupMsg}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                   <div className="label-tag">Кошельки пользователей</div>
                   <div className="flex items-center gap-3">
