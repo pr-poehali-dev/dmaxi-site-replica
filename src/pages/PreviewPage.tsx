@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 
 const DEVICES = [
@@ -6,24 +6,27 @@ const DEVICES = [
     id: "mobile",
     label: "Телефон",
     icon: "Smartphone",
-    width: 390,
-    height: 844,
+    frameW: 390,
+    frameH: 844,
+    siteW: 390,
     desc: "iPhone 14 Pro · 390×844",
   },
   {
     id: "tablet",
     label: "Планшет",
     icon: "Tablet",
-    width: 768,
-    height: 1024,
+    frameW: 768,
+    frameH: 1024,
+    siteW: 768,
     desc: "iPad · 768×1024",
   },
   {
     id: "desktop",
     label: "Компьютер",
     icon: "Monitor",
-    width: 1280,
-    height: 800,
+    frameW: 1280,
+    frameH: 800,
+    siteW: 1280,
     desc: "Desktop · 1280×800",
   },
 ];
@@ -35,11 +38,29 @@ interface Props {
 export default function PreviewPage({ onNavigate }: Props) {
   const [active, setActive] = useState("mobile");
   const [key, setKey] = useState(0);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
 
   const device = DEVICES.find((d) => d.id === active)!;
   const siteUrl = window.location.origin + window.location.pathname;
-
   const isDesktop = active === "desktop";
+
+  // Вычисляем масштаб: вписываем устройство в доступное пространство
+  useEffect(() => {
+    const calc = () => {
+      if (!wrapRef.current) return;
+      const availW = wrapRef.current.clientWidth - 48; // отступы
+      const availH = wrapRef.current.clientHeight - 80;
+      const totalW = device.frameW + (isDesktop ? 0 : 24); // + рамка
+      const totalH = device.frameH + (isDesktop ? 44 : 60);
+      const scaleW = availW / totalW;
+      const scaleH = availH / totalH;
+      setScale(Math.min(scaleW, scaleH, 1));
+    };
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, [active, device, isDesktop]);
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
@@ -94,72 +115,80 @@ export default function PreviewPage({ onNavigate }: Props) {
       </div>
 
       {/* Область предпросмотра */}
-      <div className="flex-1 flex items-start justify-center overflow-auto py-8 px-4">
-        {isDesktop ? (
-          /* Десктоп — растягиваем на всю ширину */
-          <div className="w-full max-w-6xl">
-            {/* Рамка браузера */}
-            <div className="bg-gray-800 rounded-t-2xl px-4 py-3 flex items-center gap-3">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-500" />
-                <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                <div className="w-3 h-3 rounded-full bg-green-500" />
+      <div
+        ref={wrapRef}
+        className="flex-1 flex items-center justify-center overflow-hidden py-6 px-4"
+        style={{ minHeight: 0 }}
+      >
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "top center",
+            transition: "transform 0.2s ease",
+          }}
+        >
+          {isDesktop ? (
+            /* Десктоп */
+            <div style={{ width: device.frameW }}>
+              <div className="bg-gray-800 rounded-t-2xl px-4 py-3 flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                </div>
+                <div className="flex-1 bg-gray-700 rounded-lg px-4 py-1.5 text-gray-400 text-xs font-mono truncate">
+                  {siteUrl}
+                </div>
               </div>
-              <div className="flex-1 bg-gray-700 rounded-lg px-4 py-1.5 text-gray-400 text-xs font-mono truncate">
-                {siteUrl}
-              </div>
-            </div>
-            <div
-              className="bg-white overflow-hidden rounded-b-2xl shadow-2xl"
-              style={{ height: `${device.height}px` }}
-            >
-              <iframe
-                key={key}
-                src={siteUrl}
-                className="w-full h-full border-0"
-                title="Предпросмотр"
-              />
-            </div>
-          </div>
-        ) : (
-          /* Мобильный / планшет — фиксированная рамка устройства */
-          <div
-            style={{ width: `${device.width}px` }}
-            className="shrink-0"
-          >
-            {/* Рамка устройства */}
-            <div
-              className={`relative bg-gray-800 rounded-[36px] p-3 shadow-2xl shadow-black/60 border border-gray-700`}
-            >
-              {/* Вырез */}
-              {active === "mobile" && (
-                <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-6 bg-gray-900 rounded-full z-10" />
-              )}
-              {/* Экран */}
               <div
-                className="bg-white rounded-[28px] overflow-hidden"
-                style={{ height: `${device.height}px` }}
+                className="bg-white overflow-hidden rounded-b-2xl shadow-2xl"
+                style={{ height: device.frameH }}
               >
                 <iframe
                   key={key}
                   src={siteUrl}
-                  className="w-full h-full border-0"
-                  style={{ width: `${device.width}px` }}
+                  className="border-0"
+                  style={{ width: device.siteW, height: device.frameH, display: "block" }}
                   title="Предпросмотр"
                 />
               </div>
-              {/* Кнопка Home для мобильного */}
-              {active === "mobile" && (
-                <div className="mt-2 flex justify-center">
-                  <div className="w-28 h-1 bg-gray-600 rounded-full" />
-                </div>
-              )}
             </div>
-
-            {/* Подпись */}
-            <p className="text-center text-gray-500 text-xs mt-4">{device.desc}</p>
-          </div>
-        )}
+          ) : (
+            /* Мобильный / Планшет */
+            <div style={{ width: device.frameW + 24 }}>
+              <div className="relative bg-gray-800 rounded-[36px] p-3 shadow-2xl shadow-black/60 border border-gray-700">
+                {/* Вырез камеры */}
+                {active === "mobile" && (
+                  <div className="absolute top-5 left-1/2 -translate-x-1/2 w-24 h-6 bg-gray-900 rounded-full z-10" />
+                )}
+                {/* Экран */}
+                <div
+                  className="bg-white rounded-[28px] overflow-hidden"
+                  style={{ width: device.frameW, height: device.frameH }}
+                >
+                  <iframe
+                    key={key}
+                    src={siteUrl}
+                    className="border-0"
+                    style={{
+                      width: device.siteW,
+                      height: device.frameH,
+                      display: "block",
+                    }}
+                    title="Предпросмотр"
+                  />
+                </div>
+                {/* Полоска Home */}
+                {active === "mobile" && (
+                  <div className="mt-2 flex justify-center">
+                    <div className="w-28 h-1 bg-gray-600 rounded-full" />
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-gray-500 text-xs mt-4">{device.desc}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
