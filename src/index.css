@@ -248,3 +248,31 @@
     }
   }
 }
+
+@media print {
+  body > * {
+    display: none !important;
+  }
+  #receipt-print-area {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    padding: 32px 24px !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 13px !important;
+  }
+  #receipt-print-area * {
+    color: black !important;
+    background: transparent !important;
+    border-color: #ccc !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+}

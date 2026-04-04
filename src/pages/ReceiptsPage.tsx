@@ -49,7 +49,53 @@ function formatDate(s: string) {
 }
 
 function ReceiptModal({ receipt, onClose }: { receipt: Receipt; onClose: () => void }) {
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Чек ${receipt.receipt_number}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #111; background: #fff; padding: 32px 24px; max-width: 420px; margin: 0 auto; }
+    .title { text-align: center; font-size: 22px; font-weight: 900; margin-bottom: 2px; }
+    .subtitle { text-align: center; font-size: 11px; color: #888; margin-bottom: 12px; }
+    .dashed { border-top: 1px dashed #bbb; margin: 12px 0; }
+    .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .row .label { color: #666; }
+    .row .value { font-weight: 600; text-align: right; max-width: 60%; }
+    .mono { font-family: monospace; font-size: 11px; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; margin: 4px 0; }
+    .total-label { font-size: 15px; font-weight: 700; }
+    .total-amount { font-size: 22px; font-weight: 900; }
+    .paid { text-align: center; color: #16a34a; font-weight: 700; font-size: 12px; margin-top: 4px; }
+    .footer { text-align: center; color: #aaa; font-size: 11px; margin-top: 12px; }
+    h2 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Чек об оплате</h2>
+  <div class="dashed"></div>
+  <div class="title">DD MAXI</div>
+  <div class="subtitle">Автосервис</div>
+  <div class="dashed"></div>
+  <div class="row"><span class="label">Номер чека</span><span class="value mono">${receipt.receipt_number}</span></div>
+  <div class="row"><span class="label">Дата</span><span class="value">${formatDate(receipt.created_at)}</span></div>
+  ${receipt.user_name ? `<div class="row"><span class="label">Клиент</span><span class="value">${receipt.user_name}</span></div>` : ""}
+  <div class="row"><span class="label">Операция</span><span class="value">${receipt.type_label}</span></div>
+  <div class="row"><span class="label">Описание</span><span class="value">${receipt.description}</span></div>
+  ${receipt.ref_id ? `<div class="row"><span class="label">Ref ID</span><span class="value mono" style="font-size:10px">${receipt.ref_id}</span></div>` : ""}
+  <div class="dashed"></div>
+  <div class="total-row"><span class="total-label">ИТОГО</span><span class="total-amount">${receipt.amount.toLocaleString("ru-RU")} ₽</span></div>
+  <div class="paid">✓ ОПЛАЧЕНО</div>
+  <div class="dashed"></div>
+  <div class="footer">Спасибо за использование сервисов DD MAXI</div>
+  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script>
+</body>
+</html>`;
+    const w = window.open("", "_blank", "width=500,height=700");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
