@@ -1971,7 +1971,36 @@ body { font-family: Arial, sans-serif; }
                   )}
                 </form>
 
-                {/* Выход */}
+                {/* Видимость в чате */}
+                <div className="card-dark p-5">
+                  <div className="label-tag mb-3 text-muted-foreground">Видимость в чате</div>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Показывать меня пользователям</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {(user as unknown as Record<string,boolean>).is_visible !== false
+                          ? "Пользователи могут начать с вами диалог"
+                          : "Вы скрыты — никто не может начать новый чат"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const isVis = (user as unknown as Record<string,boolean>).is_visible !== false;
+                        const r = await fetch(`${CHAT_URL}?action=set_visibility`, {
+                          method: "POST",
+                          headers: { ...H(), "Content-Type": "application/json" },
+                          body: JSON.stringify({ is_visible: !isVis }),
+                        });
+                        if (r.ok) await refreshProfile();
+                      }}
+                      className={`relative inline-flex h-7 items-center rounded-full transition-colors focus:outline-none ${(user as unknown as Record<string,boolean>).is_visible !== false ? "bg-green-500" : "bg-muted"}`}
+                      style={{ width: 52 }}
+                    >
+                      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${(user as unknown as Record<string,boolean>).is_visible !== false ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                </div>
+
                 <div className="card-dark p-5">
                   <div className="label-tag mb-3 text-muted-foreground">Сессия</div>
                   <div className="flex items-center justify-between flex-wrap gap-3">

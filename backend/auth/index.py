@@ -289,7 +289,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Сессия истекла"})}
 
             cur.execute(
-                f"SELECT id, name, phone, role, bonus_points, club_level, car_model, car_year, car_vin, email, is_active, created_at, full_name_sts, car_plate, car_sts, sts_edit_count, car_color, car_photos, club_card_number, qr_token FROM {SCHEMA}.users WHERE id = %s",
+                f"SELECT id, name, phone, role, bonus_points, club_level, car_model, car_year, car_vin, email, is_active, created_at, full_name_sts, car_plate, car_sts, sts_edit_count, car_color, car_photos, club_card_number, qr_token, is_visible FROM {SCHEMA}.users WHERE id = %s",
                 (user_id,)
             )
             u = cur.fetchone()
@@ -319,7 +319,8 @@ def handler(event: dict, context) -> dict:
                     "full_name_sts": u[12], "car_plate": u[13], "car_sts": u[14],
                     "sts_edit_count": u[15], "sts_edit_limit": STS_EDIT_LIMIT,
                     "car_color": u[16], "car_photos": list(u[17]) if u[17] else [],
-                    "club_card_number": u[18], "qr_token": u[19]
+                    "club_card_number": u[18], "qr_token": u[19],
+                    "is_visible": u[20] if u[20] is not None else True
                 })
             }
 

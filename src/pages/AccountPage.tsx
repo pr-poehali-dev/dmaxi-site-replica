@@ -1198,6 +1198,36 @@ ${photos.length > 0 ? `<div class="dashed"></div><div class="section-title">Фо
                   )}
                 </form>
 
+                {/* Видимость */}
+                <div className="card-dark p-5">
+                  <div className="label-tag mb-3 text-muted-foreground">Видимость в чате</div>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="text-sm font-medium">Показывать меня другим пользователям</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {(user as unknown as Record<string,boolean>).is_visible !== false
+                          ? "Другие пользователи могут начать с вами диалог"
+                          : "Вы скрыты — никто не может начать с вами новый чат"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const isVis = (user as unknown as Record<string,boolean>).is_visible !== false;
+                        const r = await fetch(`${CHAT_URL}?action=set_visibility`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
+                          body: JSON.stringify({ is_visible: !isVis }),
+                        });
+                        if (r.ok) await refreshProfile();
+                      }}
+                      className={`relative inline-flex h-7 w-13 items-center rounded-full transition-colors focus:outline-none ${(user as unknown as Record<string,boolean>).is_visible !== false ? "bg-green-500" : "bg-muted"}`}
+                      style={{ width: 52 }}
+                    >
+                      <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${(user as unknown as Record<string,boolean>).is_visible !== false ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                </div>
+
                 {/* Выход */}
                 <div className="card-dark p-5">
                   <div className="label-tag mb-3 text-muted-foreground">Сессия</div>
