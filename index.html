@@ -31,6 +31,35 @@
   </head>
 
 <body>
+<div id="splash" style="position:fixed;inset:0;z-index:99999;background:#0f0f0f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity 0.4s ease">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;background:#d42020;display:flex;align-items:center;justify-content:center">
+      <span style="color:#fff;font-family:Oswald,sans-serif;font-weight:700;font-size:15px;letter-spacing:1px">DD</span>
+    </div>
+    <div style="font-family:Oswald,sans-serif;font-weight:700;font-size:22px;letter-spacing:3px;color:#f2f2f2;text-transform:uppercase">DDMAXI SRS</div>
+  </div>
+  <div style="width:120px;height:2px;background:#222;overflow:hidden;border-radius:2px">
+    <div id="splash-bar" style="height:100%;width:0%;background:#d42020;transition:width 0.3s ease"></div>
+  </div>
+</div>
+<script>
+  (function(){
+    var bar = document.getElementById('splash-bar');
+    var w = 0;
+    var iv = setInterval(function(){
+      w = Math.min(w + Math.random() * 15, 85);
+      bar.style.width = w + '%';
+    }, 200);
+    window.__hideSplash = function(){
+      clearInterval(iv);
+      bar.style.width = '100%';
+      setTimeout(function(){
+        var s = document.getElementById('splash');
+        if(s){ s.style.opacity='0'; setTimeout(function(){ s.style.display='none'; },400); }
+      }, 200);
+    };
+  })();
+</script>
 <div id="root"></div>
 <script type="module" src="/src/main.tsx"></script>
 
