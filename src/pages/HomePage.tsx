@@ -1,5 +1,6 @@
 import Icon from "@/components/ui/icon";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const HERO_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/2b548611-c899-4a89-b26f-7fb55a5fe719.jpg";
 const ENGINE_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/40f7e6dd-85e7-4567-b817-ddc29b084b62.jpg";
@@ -33,12 +34,22 @@ interface HomePageProps {
 
 export default function HomePage({ onNavigate }: HomePageProps) {
   const { guard } = useAuthGuard();
+  const { s } = useSiteSettings();
+
+  const heroImg  = s("home","hero_image",  HERO_IMG);
+  const clubImg  = s("home","club_image",  CLUB_IMG);
+  const dynStats = [
+    { val: s("home","stat1_val","15+"),     label: s("home","stat1_label","лет опыта") },
+    { val: s("home","stat2_val","2 СТО"),   label: s("home","stat2_label","в Иркутске") },
+    { val: s("home","stat3_val","30 000+"), label: s("home","stat3_label","довольных клиентов") },
+    { val: s("home","stat4_val","500+"),    label: s("home","stat4_label","марок авто") },
+  ];
 
   return (
     <div className="animate-fade-in">
       {/* HERO */}
       <section className="relative min-h-[580px] lg:min-h-[680px] flex items-center overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${HERO_IMG})` }} />
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${heroImg})` }} />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
         <div className="absolute inset-0 stripe-bg opacity-30" />
 
@@ -49,13 +60,13 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               <span className="label-tag text-primary">Профессиональный автосервис Иркутск</span>
             </div>
             <h1 className="font-display font-bold text-5xl lg:text-7xl text-foreground leading-none mb-5 uppercase tracking-wider">
-              DD<span className="text-primary"> MAXI</span>
+              {s("home","hero_title","DD MAXI").split(" ").map((w,i) => i===0 ? <span key={i}>{w}<span className="text-primary"> </span></span> : <span key={i} className="text-primary">{w}</span>)}
             </h1>
             <p className="text-muted-foreground text-base mb-2 font-light leading-relaxed">
-              Ремонт и обслуживание автомобилей любых марок
+              {s("home","hero_subtitle","Ремонт и обслуживание автомобилей любых марок")}
             </p>
             <p className="text-sm text-muted-foreground/60 mb-10 leading-relaxed max-w-sm">
-              Более 15 лет на рынке. Гарантия на все виды работ. Клубная карта скидок для постоянных клиентов.
+              {s("home","hero_description","Более 15 лет на рынке. Гарантия на все виды работ. Клубная карта скидок для постоянных клиентов.")}
             </p>
             <div className="flex flex-wrap gap-4">
               <button onClick={() => guard(() => onNavigate("booking"))} className="btn-red">
@@ -87,10 +98,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       <div className="bg-primary">
         <div className="container mx-auto">
           <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-white/20">
-            {stats.map((s) => (
-              <div key={s.label} className="text-center px-6 py-5">
-                <div className="font-display font-bold text-3xl text-white">{s.val}</div>
-                <div className="text-white/60 text-[10px] tracking-widest uppercase mt-1">{s.label}</div>
+            {dynStats.map((st) => (
+              <div key={st.label} className="text-center px-6 py-5">
+                <div className="font-display font-bold text-3xl text-white">{st.val}</div>
+                <div className="text-white/60 text-[10px] tracking-widest uppercase mt-1">{st.label}</div>
               </div>
             ))}
           </div>
@@ -145,10 +156,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <span className="label-tag text-white/60">Онлайн-запись</span>
               </div>
               <h2 className="font-display font-bold text-3xl lg:text-5xl text-white uppercase leading-tight mb-4">
-                Запишитесь<br/>прямо сейчас
+                {s("home","cta_title","Запишитесь прямо сейчас")}
               </h2>
               <p className="text-white/70 text-sm leading-relaxed mb-8 max-w-sm">
-                Оставьте заявку — мы перезвоним в течение 15 минут и согласуем удобное время
+                {s("home","cta_subtitle","Оставьте заявку — мы перезвоним в течение 15 минут и согласуем удобное время")}
               </p>
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => guard(() => onNavigate("booking"))} className="bg-white text-primary font-display font-bold text-sm tracking-widest uppercase px-8 py-3 hover:bg-white/90 transition-colors">
@@ -183,7 +194,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <div className="grid lg:grid-cols-2 gap-14 items-center">
             <div className="relative">
               <div className="aspect-[4/3] overflow-hidden">
-                <img src={CLUB_IMG} alt="Клубная карта DD MAXI" className="w-full h-full object-cover" />
+                <img src={clubImg} alt="Клубная карта DD MAXI" className="w-full h-full object-cover" />
               </div>
               <div className="absolute -top-4 -right-4 hidden lg:flex flex-col items-center justify-center w-24 h-24 bg-primary">
                 <span className="font-display font-black text-2xl text-white leading-none">10%</span>
@@ -196,10 +207,10 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 <span className="label-tag">Программа лояльности</span>
               </div>
               <h2 className="font-display font-bold text-3xl lg:text-4xl uppercase mb-5 leading-tight">
-                Клуб <span className="text-primary">DD MAXI</span>
+                {s("home","club_title","Клуб DD MAXI")}
               </h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-                Оформите клубную карту и получайте скидки до 10% на все виды услуг. Накапливайте бонусы и обменивайте их на обслуживание автомобиля.
+                {s("home","club_description","Оформите клубную карту и получайте скидки до 10% на все виды услуг. Накапливайте бонусы и обменивайте их на обслуживание автомобиля.")}
               </p>
               <div className="space-y-3 mb-8">
                 {[
