@@ -19,6 +19,7 @@ import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
 import ReceiptsPage from "@/pages/ReceiptsPage";     // Хранилище чеков
 import SiteEditorPage from "@/pages/SiteEditorPage"; // Редактор сайта
 import LegalPage from "@/pages/LegalPage";           // Политика / Соглашение
+import PreviewPage from "@/pages/PreviewPage";       // Предпросмотр сайта
 
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
 const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
@@ -154,6 +155,7 @@ export default function Index() {
       case "receipts":        return <ReceiptsPage onNavigate={navigate} />;
       case "receipts_admin":  return <ReceiptsPage onNavigate={navigate} isAdmin />;
       case "site_editor":     return <SiteEditorPage onNavigate={navigate} />;
+      case "preview":         return <PreviewPage onNavigate={navigate} />;
       case "privacy":         return <LegalPage type="privacy" onNavigate={navigate} />;
       case "terms":           return <LegalPage type="terms"   onNavigate={navigate} />;
       default:                return <HomePage onNavigate={navigate} />;

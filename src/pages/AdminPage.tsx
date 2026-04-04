@@ -470,6 +470,9 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
             <button onClick={() => onNavigate("site_editor")} className="w-full flex items-center gap-2 text-xs text-blue-600 hover:text-blue-700 px-5 py-2.5 transition-colors font-display uppercase tracking-wide border border-blue-200 hover:bg-blue-50">
               <Icon name="Pencil" size={13} />Редактор сайта
             </button>
+            <button onClick={() => onNavigate("preview")} className="w-full mt-1 flex items-center gap-2 text-xs text-purple-600 hover:text-purple-700 px-5 py-2.5 transition-colors font-display uppercase tracking-wide border border-purple-200 hover:bg-purple-50">
+              <Icon name="Eye" size={13} />Предпросмотр
+            </button>
             <button onClick={() => onNavigate("receipts_admin")} className="w-full mt-1 flex items-center gap-2 text-xs text-green-600 hover:text-green-700 px-5 py-2.5 transition-colors font-display uppercase tracking-wide border border-green-200 hover:bg-green-50">
               <Icon name="Receipt" size={13} />Хранилище чеков
             </button>
