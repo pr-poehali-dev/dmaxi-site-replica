@@ -83,12 +83,18 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
-    name: "", email: "", car_model: "", car_year: "", car_vin: "",
+    name: "", email: "", car_model: "", car_year: "", car_vin: "", car_color: "",
     full_name_sts: "", car_plate: "", car_sts: "",
     new_password: "", confirm_password: "",
   });
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+
+  // Car photos state
+  const [carPhotos, setCarPhotos] = useState<string[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const carPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const authH = useCallback(() => ({ "Content-Type": "application/json", "X-Auth-Token": token || "" }), [token]);
 
@@ -97,10 +103,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setProfileForm({
         name: user.name || "", email: user.email || "",
         car_model: user.car_model || "", car_year: user.car_year || "",
-        car_vin: user.car_vin || "", full_name_sts: user.full_name_sts || "",
+        car_vin: user.car_vin || "", car_color: (user as unknown as Record<string,string>).car_color || "",
+        full_name_sts: user.full_name_sts || "",
         car_plate: user.car_plate || "", car_sts: user.car_sts || "",
         new_password: "", confirm_password: "",
       });
+      const photos = (user as unknown as Record<string,unknown>).car_photos;
+      setCarPhotos(Array.isArray(photos) ? photos as string[] : []);
     }
   }, [user]);
 
@@ -124,10 +133,94 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     } finally { setWalletLoading(false); }
   }, [token]);
 
-  // Загрузка баланса при входе
+  // Загрузка и автообновление баланса: при входе и каждые 10с когда на вкладке wallet
   useEffect(() => {
-    if (token) loadWallet();
+    if (token) { loadWallet(); refreshProfile(); }
   }, [token]);
+
+  useEffect(() => {
+    if (activeTab !== "wallet" || !token) return;
+    const iv = setInterval(() => loadWallet(), 10000);
+    return () => clearInterval(iv);
+  }, [activeTab, token, loadWallet]);
+
+  const uploadCarPhoto = useCallback(async (file: File) => {
+    if (!token) return;
+    setPhotoUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const b64 = (e.target?.result as string).split(",")[1];
+        const r = await fetch(`${AUTH_URL}?action=upload_car_photo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+          body: JSON.stringify({ file_data: b64, file_type: file.type }),
+        });
+        const d = await r.json();
+        if (r.ok) { setCarPhotos(d.photos || []); }
+        setPhotoUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch { setPhotoUploading(false); }
+  }, [token]);
+
+  const deleteCarPhoto = useCallback(async (url: string) => {
+    if (!token) return;
+    const r = await fetch(`${AUTH_URL}?action=delete_car_photo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+      body: JSON.stringify({ url }),
+    });
+    const d = await r.json();
+    if (r.ok) setCarPhotos(d.photos || []);
+  }, [token]);
+
+  const printCarData = () => {
+    if (!user) return;
+    const photos = (user as unknown as Record<string,unknown>).car_photos as string[] || carPhotos;
+    const color = (user as unknown as Record<string,string>).car_color || profileForm.car_color;
+    const html = `<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"/><title>Данные автомобиля — DD MAXI</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #111; padding: 32px 28px; max-width: 600px; margin: 0 auto; }
+  .title { font-size: 22px; font-weight: 900; margin-bottom: 2px; }
+  .sub { font-size: 11px; color: #888; margin-bottom: 16px; }
+  .dashed { border-top: 1px dashed #bbb; margin: 14px 0; }
+  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #999; margin-bottom: 10px; font-weight: 600; }
+  .row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .label { color: #777; min-width: 150px; }
+  .value { font-weight: 600; }
+  .photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .photos img { width: 160px; height: 110px; object-fit: cover; border: 1px solid #ddd; }
+  .footer { text-align: center; color: #bbb; font-size: 10px; margin-top: 20px; }
+  h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+</style></head>
+<body>
+<h2>Данные автомобиля</h2>
+<div class="title">DD MAXI</div>
+<div class="sub">Автосервис — карточка клиента</div>
+<div class="dashed"></div>
+<div class="section-title">Владелец</div>
+<div class="row"><span class="label">Имя:</span><span class="value">${user.name || "—"}</span></div>
+<div class="row"><span class="label">Телефон:</span><span class="value">${user.phone || "—"}</span></div>
+${user.full_name_sts ? `<div class="row"><span class="label">ФИО по СТС:</span><span class="value">${user.full_name_sts}</span></div>` : ""}
+<div class="dashed"></div>
+<div class="section-title">Автомобиль</div>
+<div class="row"><span class="label">Марка и модель:</span><span class="value">${user.car_model || "—"}</span></div>
+${user.car_year ? `<div class="row"><span class="label">Год выпуска:</span><span class="value">${user.car_year}</span></div>` : ""}
+${color ? `<div class="row"><span class="label">Цвет:</span><span class="value">${color}</span></div>` : ""}
+${user.car_vin ? `<div class="row"><span class="label">VIN:</span><span class="value">${user.car_vin}</span></div>` : ""}
+${user.car_plate ? `<div class="row"><span class="label">Гос. номер:</span><span class="value">${user.car_plate}</span></div>` : ""}
+${user.car_sts ? `<div class="row"><span class="label">№ СТС:</span><span class="value">${user.car_sts}</span></div>` : ""}
+${photos.length > 0 ? `<div class="dashed"></div><div class="section-title">Фотографии (${photos.length})</div><div class="photos">${photos.map(p => `<img src="${p}" />`).join("")}</div>` : ""}
+<div class="dashed"></div>
+<div class="footer">DD MAXI StroyRemService — распечатано ${new Date().toLocaleDateString("ru-RU")}</div>
+<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script>
+</body></html>`;
+    const w = window.open("", "_blank", "width=700,height=800");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
 
   // Загрузка данных по вкладке
   useEffect(() => {
@@ -245,8 +338,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         car_model: profileForm.car_model,
         car_year: profileForm.car_year,
         car_vin: profileForm.car_vin,
+        car_color: profileForm.car_color,
         ...(profileForm.new_password ? { new_password: profileForm.new_password } : {}),
-      });
+      } as Parameters<typeof updateProfile>[0]);
       setSaveMsg("Данные сохранены!");
       setProfileForm(p => ({ ...p, new_password: "", confirm_password: "" }));
       await refreshProfile();
@@ -668,25 +762,122 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             {/* АВТОМОБИЛИ */}
             {activeTab === "cars" && (
               <div>
-                <div className="label-tag mb-5">Мои автомобили</div>
-                <div className="card-dark p-6">
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                  <div className="label-tag">Мои автомобили</div>
+                  <button onClick={printCarData} className="btn-ghost text-xs py-1.5 px-3">
+                    <Icon name="Printer" size={13} />Распечатать
+                  </button>
+                </div>
+
+                {/* Карточка авто */}
+                <div className="card-dark p-6 mb-5">
                   <div className="flex items-start gap-4 mb-5">
                     <div className="w-12 h-12 bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
                       <Icon name="Car" size={24} className="text-primary" />
                     </div>
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-1.5">
                       <div className="font-display font-bold text-base uppercase tracking-wide">{user.car_model || "Не указан"}</div>
-                      {user.car_year && <div className="label-tag">Год: {user.car_year}</div>}
-                      {user.car_vin && <div className="label-tag">VIN: {user.car_vin}</div>}
-                      {user.car_plate && <div className="label-tag">Гос. номер: {user.car_plate}</div>}
-                      {user.full_name_sts && <div className="label-tag">ФИО по СТС: {user.full_name_sts}</div>}
-                      {user.car_sts && <div className="label-tag">№ СТС: {user.car_sts}</div>}
+                      <div className="flex flex-wrap gap-x-5 gap-y-1">
+                        {user.car_year && <div className="label-tag">Год: {user.car_year}</div>}
+                        {((user as unknown as Record<string,string>).car_color) && <div className="label-tag">Цвет: {(user as unknown as Record<string,string>).car_color}</div>}
+                        {user.car_vin && <div className="label-tag">VIN: {user.car_vin}</div>}
+                        {user.car_plate && <div className="label-tag">Гос. номер: {user.car_plate}</div>}
+                        {user.full_name_sts && <div className="label-tag">ФИО по СТС: {user.full_name_sts}</div>}
+                        {user.car_sts && <div className="label-tag">№ СТС: {user.car_sts}</div>}
+                      </div>
                     </div>
                   </div>
                   <button onClick={() => setActiveTab("settings")} className="btn-ghost text-sm">
                     <Icon name="Edit" size={15} />Изменить данные
                   </button>
                 </div>
+
+                {/* Фотографии */}
+                <div className="card-dark p-5">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div className="font-display text-xs uppercase tracking-widest text-muted-foreground">
+                      Фотографии автомобиля ({carPhotos.length}/7)
+                    </div>
+                    {carPhotos.length < 7 && (
+                      <button
+                        onClick={() => carPhotoInputRef.current?.click()}
+                        disabled={photoUploading}
+                        className="btn-ghost text-xs py-1.5 px-3 disabled:opacity-60"
+                      >
+                        {photoUploading
+                          ? <><Icon name="Loader2" size={13} className="animate-spin"/>Загрузка...</>
+                          : <><Icon name="Plus" size={13}/>Добавить фото</>}
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    ref={carPhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadCarPhoto(f); e.target.value = ""; }}
+                  />
+
+                  {carPhotos.length === 0 ? (
+                    <button
+                      onClick={() => carPhotoInputRef.current?.click()}
+                      disabled={photoUploading}
+                      className="w-full border border-dashed border-border hover:border-primary/50 rounded p-8 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                    >
+                      <Icon name="Camera" size={28} />
+                      <span className="text-xs font-display uppercase tracking-wide">Нажмите, чтобы добавить фото</span>
+                      <span className="text-xs opacity-60">До 7 фотографий</span>
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {carPhotos.map((url, i) => (
+                        <div key={i} className="relative group aspect-square">
+                          <img
+                            src={url}
+                            alt={`Фото ${i+1}`}
+                            onClick={() => setLightboxUrl(url)}
+                            className="w-full h-full object-cover rounded cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                          <button
+                            onClick={() => deleteCarPhoto(url)}
+                            className="absolute top-1 right-1 w-6 h-6 bg-black/70 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                          >
+                            <Icon name="X" size={11} />
+                          </button>
+                        </div>
+                      ))}
+                      {carPhotos.length < 7 && (
+                        <button
+                          onClick={() => carPhotoInputRef.current?.click()}
+                          disabled={photoUploading}
+                          className="aspect-square border border-dashed border-border hover:border-primary/50 rounded flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                        >
+                          {photoUploading ? <Icon name="Loader2" size={20} className="animate-spin"/> : <Icon name="Plus" size={20}/>}
+                          <span className="text-[10px]">Добавить</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Лайтбокс */}
+                {lightboxUrl && (
+                  <div
+                    className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                    onClick={() => setLightboxUrl(null)}
+                  >
+                    <button className="absolute top-4 right-4 text-white/70 hover:text-white" onClick={() => setLightboxUrl(null)}>
+                      <Icon name="X" size={28} />
+                    </button>
+                    <img
+                      src={lightboxUrl}
+                      alt="Фото авто"
+                      onClick={e => e.stopPropagation()}
+                      className="max-w-full max-h-full object-contain rounded"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -918,6 +1109,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                         <input type="text" value={profileForm.car_year} onChange={e => setProfileForm({ ...profileForm, car_year: e.target.value })} className="input-dark" placeholder="2020" />
                       </div>
                       <div>
+                        <label className="label-tag mb-1.5 block">Цвет</label>
+                        <input type="text" value={profileForm.car_color} onChange={e => setProfileForm({ ...profileForm, car_color: e.target.value })} className="input-dark" placeholder="Белый" />
+                      </div>
+                      <div className="sm:col-span-3">
                         <label className="label-tag mb-1.5 block">VIN номер</label>
                         <input type="text" value={profileForm.car_vin} onChange={e => setProfileForm({ ...profileForm, car_vin: e.target.value.toUpperCase() })} className="input-dark" placeholder="XTA21..." />
                       </div>

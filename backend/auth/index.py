@@ -4,7 +4,10 @@ import hashlib
 import secrets
 import smtplib
 import ssl
+import base64
+import uuid
 import psycopg2
+import boto3
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
@@ -120,6 +123,14 @@ def cors_headers():
         "Access-Control-Allow-Headers": "Content-Type, X-User-Id, X-Auth-Token, X-Session-Id",
         "Content-Type": "application/json",
     }
+
+def get_s3():
+    return boto3.client(
+        "s3",
+        endpoint_url="https://bucket.poehali.dev",
+        aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+    )
 
 def get_user_id_from_token(cur, token):
     if not token:
@@ -269,7 +280,7 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Сессия истекла"})}
 
             cur.execute(
-                f"SELECT id, name, phone, role, bonus_points, club_level, car_model, car_year, car_vin, email, is_active, created_at, full_name_sts, car_plate, car_sts, sts_edit_count FROM {SCHEMA}.users WHERE id = %s",
+                f"SELECT id, name, phone, role, bonus_points, club_level, car_model, car_year, car_vin, email, is_active, created_at, full_name_sts, car_plate, car_sts, sts_edit_count, car_color, car_photos FROM {SCHEMA}.users WHERE id = %s",
                 (user_id,)
             )
             u = cur.fetchone()
@@ -285,7 +296,8 @@ def handler(event: dict, context) -> dict:
                     "car_year": u[7], "car_vin": u[8], "email": u[9],
                     "is_active": u[10], "created_at": str(u[11]),
                     "full_name_sts": u[12], "car_plate": u[13], "car_sts": u[14],
-                    "sts_edit_count": u[15], "sts_edit_limit": STS_EDIT_LIMIT
+                    "sts_edit_count": u[15], "sts_edit_limit": STS_EDIT_LIMIT,
+                    "car_color": u[16], "car_photos": list(u[17]) if u[17] else []
                 })
             }
 
@@ -316,7 +328,7 @@ def handler(event: dict, context) -> dict:
                 updates.append("password_hash = %s"); vals.append(hash_password(body["new_password"]))
 
             # Поля автомобиля без лимита
-            for field in ["car_model", "car_year", "car_vin"]:
+            for field in ["car_model", "car_year", "car_vin", "car_color"]:
                 if body.get(field) is not None:
                     updates.append(f"{field} = %s"); vals.append(body[field] or None)
 
@@ -436,6 +448,58 @@ def handler(event: dict, context) -> dict:
                     }
                 })
             }
+
+        # POST upload_car_photo — загрузка фото автомобиля (base64)
+        if method == "POST" and action == "upload_car_photo":
+            if not token:
+                return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Не авторизован"})}
+            user_id = get_user_id_from_token(cur, token)
+            if not user_id:
+                return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Сессия истекла"})}
+
+            cur.execute(f"SELECT car_photos FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            photos = list(row[0]) if row and row[0] else []
+            if len(photos) >= 7:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Максимум 7 фотографий"})}
+
+            file_data_b64 = body.get("file_data", "")
+            file_type = body.get("file_type", "image/jpeg")
+            if not file_data_b64:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Нет данных файла"})}
+
+            ext = "jpg" if "jpeg" in file_type else file_type.split("/")[-1]
+            key = f"car_photos/{user_id}/{uuid.uuid4().hex}.{ext}"
+            file_bytes = base64.b64decode(file_data_b64)
+
+            s3 = get_s3()
+            s3.put_object(Bucket="files", Key=key, Body=file_bytes, ContentType=file_type)
+            cdn_url = f"https://cdn.poehali.dev/projects/{os.environ['AWS_ACCESS_KEY_ID']}/bucket/{key}"
+
+            photos.append(cdn_url)
+            cur.execute(f"UPDATE {SCHEMA}.users SET car_photos = %s WHERE id = %s", (photos, user_id))
+            db.commit()
+
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True, "url": cdn_url, "photos": photos})}
+
+        # DELETE delete_car_photo — удаление фото автомобиля
+        if method == "POST" and action == "delete_car_photo":
+            if not token:
+                return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Не авторизован"})}
+            user_id = get_user_id_from_token(cur, token)
+            if not user_id:
+                return {"statusCode": 401, "headers": cors_headers(), "body": json.dumps({"error": "Сессия истекла"})}
+
+            photo_url = body.get("url", "")
+            cur.execute(f"SELECT car_photos FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            photos = list(row[0]) if row and row[0] else []
+            if photo_url in photos:
+                photos.remove(photo_url)
+                cur.execute(f"UPDATE {SCHEMA}.users SET car_photos = %s WHERE id = %s", (photos, user_id))
+                db.commit()
+
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True, "photos": photos})}
 
         return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Not found"})}
 

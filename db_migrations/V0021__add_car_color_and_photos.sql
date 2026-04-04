@@ -1,0 +1,3 @@
+ALTER TABLE t_p90995829_dmaxi_site_replica.users
+  ADD COLUMN IF NOT EXISTS car_color VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS car_photos TEXT[] NULL DEFAULT '{}';
