@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
 const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
@@ -30,6 +31,7 @@ const SHOP_SECTIONS = [
 export default function ShopPage({ onNavigate }: ShopPageProps) {
   const { user, token } = useAuth();
   const { guard } = useAuthGuard();
+  const { s } = useSiteSettings();
   const [products, setProducts]     = useState<Product[]>([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
@@ -136,8 +138,12 @@ export default function ShopPage({ onNavigate }: ShopPageProps) {
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
               <div className="label-tag mb-3">DD MAXI</div>
-              <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-widest mb-2">Магазин</h1>
-              <p className="text-muted-foreground text-sm">Товары, автозапчасти и оплата услуг — всё в одном месте</p>
+              <h1 className="font-display font-black text-3xl sm:text-4xl uppercase tracking-widest mb-2">
+                {s("shop","page_title","Магазин")}
+              </h1>
+              <p className="text-muted-foreground text-sm">
+                {s("shop","page_subtitle","Товары, автозапчасти и оплата услуг — всё в одном месте")}
+              </p>
             </div>
             {user && (
               <div className="card-dark px-5 py-3 flex items-center gap-4">

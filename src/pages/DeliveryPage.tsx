@@ -1,8 +1,8 @@
 import Icon from "@/components/ui/icon";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
-const CLUB_IMG = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/ef0c3cfa-d990-49c5-a7c2-e939db2733c7.jpg";
+const CLUB_IMG_DEFAULT = "https://cdn.poehali.dev/projects/6ac06d75-10c8-4905-8743-acae4c622e9a/files/ef0c3cfa-d990-49c5-a7c2-e939db2733c7.jpg";
 
-// Страница Клуб DD
 const benefits = [
   { icon: "Percent", title: "Скидка до 10%", desc: "На все виды работ и услуг в наших СТО" },
   { icon: "Coins", title: "Бонусные баллы", desc: "Накапливайте баллы за каждое обслуживание" },
@@ -12,10 +12,10 @@ const benefits = [
   { icon: "User", title: "Личный кабинет", desc: "История обслуживания и бонусный счёт онлайн" },
 ];
 
-const tiers = [
-  { name: "Стандарт", color: "border-border", badge: "bg-secondary text-muted-foreground", discount: "3%", bonus: "1 балл / 100 ₽", perks: ["Скидка 3% на услуги", "Базовое накопление баллов"] },
-  { name: "Серебро", color: "border-gray-400", badge: "bg-gray-600 text-white", discount: "5%", bonus: "1.5 балла / 100 ₽", perks: ["Скидка 5% на услуги", "Ускоренное накопление", "Приоритетная запись"] },
-  { name: "Золото", color: "border-yellow-500", badge: "bg-yellow-600 text-white", discount: "10%", bonus: "2 балла / 100 ₽", perks: ["Скидка 10% на все", "Максимальное накопление", "VIP-запись", "Персональный менеджер"] },
+const TIER_STYLES = [
+  { color: "border-border",       badge: "bg-secondary text-muted-foreground", perks: ["Скидка 3% на услуги", "Базовое накопление баллов"] },
+  { color: "border-gray-400",     badge: "bg-gray-600 text-white",             perks: ["Скидка 5% на услуги", "Ускоренное накопление", "Приоритетная запись"] },
+  { color: "border-yellow-500",   badge: "bg-yellow-600 text-white",           perks: ["Скидка 10% на все", "Максимальное накопление", "VIP-запись", "Персональный менеджер"] },
 ];
 
 interface ClubPageProps {
@@ -23,6 +23,23 @@ interface ClubPageProps {
 }
 
 export default function DeliveryPage({ onNavigate }: ClubPageProps) {
+  const { s } = useSiteSettings();
+
+  const clubImg = s("club","hero_image", CLUB_IMG_DEFAULT);
+
+  const tiers = [
+    { name: s("club","tier1_name","Стандарт"), discount: s("club","tier1_discount","3%"), bonus: s("club","tier1_bonus","1 балл / 100 ₽"), ...TIER_STYLES[0] },
+    { name: s("club","tier2_name","Серебро"),  discount: s("club","tier2_discount","5%"), bonus: s("club","tier2_bonus","1.5 балла / 100 ₽"), ...TIER_STYLES[1] },
+    { name: s("club","tier3_name","Золото"),   discount: s("club","tier3_discount","10%"), bonus: s("club","tier3_bonus","2 балла / 100 ₽"), ...TIER_STYLES[2] },
+  ];
+
+  const steps = [
+    { n: "01", title: s("club","step1_title","Заявка онлайн"), desc: s("club","step1_desc","Заполните форму на сайте или обратитесь на СТО") },
+    { n: "02", title: s("club","step2_title","Первый визит"),  desc: s("club","step2_desc","Приедьте на обслуживание — карту оформят на месте") },
+    { n: "03", title: s("club","step3_title","Активация"),     desc: s("club","step3_desc","Карта активируется автоматически после первого ТО") },
+    { n: "04", title: s("club","step4_title","Пользуйтесь!"), desc: s("club","step4_desc","Скидки и баллы начисляются с первого визита") },
+  ];
+
   return (
     <div className="animate-fade-in">
       <div className="border-b border-border">
@@ -43,10 +60,10 @@ export default function DeliveryPage({ onNavigate }: ClubPageProps) {
                 <span className="label-tag">Программа лояльности</span>
               </div>
               <h1 className="font-display font-bold text-4xl lg:text-6xl uppercase mb-5 leading-tight">
-                Клуб<br/><span className="text-primary">DD MAXI</span>
+                {s("club","page_title","Клуб DD MAXI")}
               </h1>
               <p className="text-muted-foreground text-sm leading-relaxed mb-8 max-w-md">
-                Станьте членом нашего клуба и получайте эксклюзивные скидки, накапливайте бонусы и пользуйтесь привилегиями постоянного клиента.
+                {s("club","page_subtitle","Станьте членом нашего клуба и получайте эксклюзивные скидки, накапливайте бонусы и пользуйтесь привилегиями постоянного клиента.")}
               </p>
               <div className="flex flex-wrap gap-3">
                 <button onClick={() => onNavigate("login")} className="btn-red">
@@ -61,10 +78,10 @@ export default function DeliveryPage({ onNavigate }: ClubPageProps) {
             </div>
             <div className="relative">
               <div className="aspect-[4/3] overflow-hidden">
-                <img src={CLUB_IMG} alt="Клубная карта DD MAXI" className="w-full h-full object-cover" />
+                <img src={clubImg} alt="Клубная карта DD MAXI" className="w-full h-full object-cover" />
               </div>
               <div className="absolute -top-4 -right-4 hidden lg:flex flex-col items-center justify-center w-20 h-20 bg-primary">
-                <span className="font-display font-black text-xl text-white">10%</span>
+                <span className="font-display font-black text-xl text-white">{s("club","tier3_discount","10%")}</span>
                 <span className="text-white/70 text-[9px] tracking-widest uppercase text-center">скидка</span>
               </div>
             </div>
@@ -76,7 +93,7 @@ export default function DeliveryPage({ onNavigate }: ClubPageProps) {
       <section className="container mx-auto section-py">
         <div className="flex items-center gap-3 mb-10">
           <div className="red-line" />
-          <h2 className="font-display font-bold text-3xl uppercase">Преимущества клуба</h2>
+          <h2 className="font-display font-bold text-3xl uppercase">{s("club","benefits_title","Преимущества клуба")}</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {benefits.map((b) => (
@@ -98,7 +115,7 @@ export default function DeliveryPage({ onNavigate }: ClubPageProps) {
         <div className="container mx-auto section-py">
           <div className="flex items-center gap-3 mb-10">
             <div className="red-line" />
-            <h2 className="font-display font-bold text-3xl uppercase">Уровни карты</h2>
+            <h2 className="font-display font-bold text-3xl uppercase">{s("club","tiers_title","Уровни карты")}</h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-5">
             {tiers.map((tier, i) => (
@@ -127,15 +144,10 @@ export default function DeliveryPage({ onNavigate }: ClubPageProps) {
       <section className="container mx-auto section-py">
         <div className="flex items-center gap-3 mb-10">
           <div className="red-line" />
-          <h2 className="font-display font-bold text-3xl uppercase">Как получить карту</h2>
+          <h2 className="font-display font-bold text-3xl uppercase">{s("club","steps_title","Как получить карту")}</h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { n: "01", title: "Заявка онлайн", desc: "Заполните форму на сайте или обратитесь на СТО" },
-            { n: "02", title: "Первый визит", desc: "Приедьте на обслуживание — карту оформят на месте" },
-            { n: "03", title: "Активация", desc: "Карта активируется автоматически после первого ТО" },
-            { n: "04", title: "Пользуйтесь!", desc: "Скидки и баллы начисляются с первого визита" },
-          ].map((step) => (
+          {steps.map((step) => (
             <div key={step.n} className="text-center">
               <div className="font-display font-bold text-5xl text-border mb-3">{step.n}</div>
               <div className="font-display font-bold text-sm uppercase tracking-wide mb-2">{step.title}</div>

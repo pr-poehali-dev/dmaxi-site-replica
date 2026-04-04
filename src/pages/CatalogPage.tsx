@@ -1,54 +1,56 @@
 import Icon from "@/components/ui/icon";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
-// Переиспользуем эту страницу как страницу цен (Prices)
 interface PricesPageProps {
   onNavigate: (p: string) => void;
 }
 
-const priceSections = [
-  {
-    title: "ТО и замена жидкостей",
-    rows: [
-      { name: "Замена моторного масла + фильтр", price: "800 ₽", time: "30 мин" },
-      { name: "Замена охлаждающей жидкости", price: "600 ₽", time: "40 мин" },
-      { name: "Замена тормозной жидкости", price: "500 ₽", time: "20 мин" },
-      { name: "ТО-1 (по регламенту)", price: "от 3 500 ₽", time: "2–3 ч" },
-      { name: "ТО-2 (по регламенту)", price: "от 6 000 ₽", time: "3–4 ч" },
-    ],
-  },
-  {
-    title: "Двигатель",
-    rows: [
-      { name: "Диагностика двигателя", price: "500 ₽", time: "30 мин" },
-      { name: "Замена ремня ГРМ", price: "от 2 500 ₽", time: "2–3 ч" },
-      { name: "Замена прокладки ГБЦ", price: "от 5 000 ₽", time: "4–6 ч" },
-      { name: "Капитальный ремонт двигателя", price: "от 30 000 ₽", time: "2–5 дней" },
-    ],
-  },
-  {
-    title: "Ходовая часть",
-    rows: [
-      { name: "Замена амортизатора (1 шт.)", price: "от 1 200 ₽", time: "1 ч" },
-      { name: "Замена шаровой опоры (1 шт.)", price: "от 800 ₽", time: "1 ч" },
-      { name: "Замена тормозных колодок (1 ось)", price: "от 700 ₽", time: "45 мин" },
-      { name: "Сход-развал 3D", price: "от 1 000 ₽", time: "1 ч" },
-      { name: "Замена рулевых наконечников", price: "от 900 ₽", time: "1 ч" },
-    ],
-  },
-  {
-    title: "Шиномонтаж",
-    rows: [
-      { name: "Шиномонтаж R13–R15 (1 шт.)", price: "300 ₽", time: "15 мин" },
-      { name: "Шиномонтаж R16–R18 (1 шт.)", price: "400 ₽", time: "15 мин" },
-      { name: "Шиномонтаж R19–R20 (1 шт.)", price: "500 ₽", time: "15 мин" },
-      { name: "Балансировка (1 колесо)", price: "200 ₽", time: "10 мин" },
-      { name: "Ремонт прокола", price: "300 ₽", time: "20 мин" },
-      { name: "Хранение шин (сезон)", price: "от 2 000 ₽", time: "—" },
-    ],
-  },
-];
-
 export default function CatalogPage({ onNavigate }: PricesPageProps) {
+  const { s } = useSiteSettings();
+
+  const priceSections = [
+    {
+      title: s("prices","sec1_title","ТО и замена жидкостей"),
+      rows: [
+        { name: s("prices","sec1_r1_name","Замена моторного масла + фильтр"), price: s("prices","sec1_r1_price","800 ₽"),        time: s("prices","sec1_r1_time","30 мин") },
+        { name: s("prices","sec1_r2_name","Замена охлаждающей жидкости"),      price: s("prices","sec1_r2_price","600 ₽"),        time: s("prices","sec1_r2_time","40 мин") },
+        { name: s("prices","sec1_r3_name","Замена тормозной жидкости"),        price: s("prices","sec1_r3_price","500 ₽"),        time: s("prices","sec1_r3_time","20 мин") },
+        { name: s("prices","sec1_r4_name","ТО-1 (по регламенту)"),             price: s("prices","sec1_r4_price","от 3 500 ₽"),   time: s("prices","sec1_r4_time","2–3 ч") },
+        { name: s("prices","sec1_r5_name","ТО-2 (по регламенту)"),             price: s("prices","sec1_r5_price","от 6 000 ₽"),   time: s("prices","sec1_r5_time","3–4 ч") },
+      ],
+    },
+    {
+      title: s("prices","sec2_title","Двигатель"),
+      rows: [
+        { name: s("prices","sec2_r1_name","Диагностика двигателя"),           price: s("prices","sec2_r1_price","500 ₽"),         time: s("prices","sec2_r1_time","30 мин") },
+        { name: s("prices","sec2_r2_name","Замена ремня ГРМ"),                price: s("prices","sec2_r2_price","от 2 500 ₽"),    time: s("prices","sec2_r2_time","2–3 ч") },
+        { name: s("prices","sec2_r3_name","Замена прокладки ГБЦ"),            price: s("prices","sec2_r3_price","от 5 000 ₽"),    time: s("prices","sec2_r3_time","4–6 ч") },
+        { name: s("prices","sec2_r4_name","Капитальный ремонт двигателя"),    price: s("prices","sec2_r4_price","от 30 000 ₽"),   time: s("prices","sec2_r4_time","2–5 дней") },
+      ],
+    },
+    {
+      title: s("prices","sec3_title","Ходовая часть"),
+      rows: [
+        { name: s("prices","sec3_r1_name","Замена амортизатора (1 шт.)"),     price: s("prices","sec3_r1_price","от 1 200 ₽"),    time: s("prices","sec3_r1_time","1 ч") },
+        { name: s("prices","sec3_r2_name","Замена шаровой опоры (1 шт.)"),    price: s("prices","sec3_r2_price","от 800 ₽"),      time: s("prices","sec3_r2_time","1 ч") },
+        { name: s("prices","sec3_r3_name","Замена тормозных колодок (1 ось)"),price: s("prices","sec3_r3_price","от 700 ₽"),      time: s("prices","sec3_r3_time","45 мин") },
+        { name: s("prices","sec3_r4_name","Сход-развал 3D"),                  price: s("prices","sec3_r4_price","от 1 000 ₽"),    time: s("prices","sec3_r4_time","1 ч") },
+        { name: s("prices","sec3_r5_name","Замена рулевых наконечников"),     price: s("prices","sec3_r5_price","от 900 ₽"),      time: s("prices","sec3_r5_time","1 ч") },
+      ],
+    },
+    {
+      title: s("prices","sec4_title","Шиномонтаж"),
+      rows: [
+        { name: s("prices","sec4_r1_name","Шиномонтаж R13–R15 (1 шт.)"),     price: s("prices","sec4_r1_price","300 ₽"),         time: s("prices","sec4_r1_time","15 мин") },
+        { name: s("prices","sec4_r2_name","Шиномонтаж R16–R18 (1 шт.)"),     price: s("prices","sec4_r2_price","400 ₽"),         time: s("prices","sec4_r2_time","15 мин") },
+        { name: s("prices","sec4_r3_name","Шиномонтаж R19–R20 (1 шт.)"),     price: s("prices","sec4_r3_price","500 ₽"),         time: s("prices","sec4_r3_time","15 мин") },
+        { name: s("prices","sec4_r4_name","Балансировка (1 колесо)"),         price: s("prices","sec4_r4_price","200 ₽"),         time: s("prices","sec4_r4_time","10 мин") },
+        { name: s("prices","sec4_r5_name","Ремонт прокола"),                  price: s("prices","sec4_r5_price","300 ₽"),         time: s("prices","sec4_r5_time","20 мин") },
+        { name: s("prices","sec4_r6_name","Хранение шин (сезон)"),            price: s("prices","sec4_r6_price","от 2 000 ₽"),    time: s("prices","sec4_r6_time","—") },
+      ],
+    },
+  ];
+
   return (
     <div className="animate-fade-in">
       <div className="border-b border-border">
@@ -65,9 +67,11 @@ export default function CatalogPage({ onNavigate }: PricesPageProps) {
             <div className="red-line" />
             <span className="label-tag">Прозрачное ценообразование</span>
           </div>
-          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Стоимость услуг</h1>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">
+            {s("prices","page_title","Прайс-лист")}
+          </h1>
           <p className="text-muted-foreground text-sm max-w-lg">
-            Цены указаны за работу без стоимости запчастей и расходных материалов. Точную стоимость уточняйте у менеджера.
+            {s("prices","page_subtitle","Актуальные цены на ремонт и обслуживание. Точная стоимость определяется после диагностики.")}
           </p>
         </div>
       </div>

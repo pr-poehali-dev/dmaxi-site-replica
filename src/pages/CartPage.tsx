@@ -1,9 +1,9 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
 
-// Страница онлайн-записи на ремонт (Booking)
 const timeSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
 const serviceOptions = [
@@ -12,18 +12,16 @@ const serviceOptions = [
   "Электрика", "ТО по регламенту", "Другое",
 ];
 
-const locations = [
-  "СТО на ул. Верхоленская",
-];
-
 interface BookingPageProps {
   onNavigate: (p: string) => void;
 }
 
 export default function CartPage({ onNavigate }: BookingPageProps) {
+  const { s } = useSiteSettings();
+  const location1 = s("booking","location1","СТО на ул. Верхоленская");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    service: "", car: "", name: "", phone: "", date: "", time: "", location: locations[0], comment: "",
+    service: "", car: "", name: "", phone: "", date: "", time: "", location: location1, comment: "",
   });
   const [done, setDone] = useState(false);
   const [sending, setSending] = useState(false);
@@ -75,8 +73,12 @@ export default function CartPage({ onNavigate }: BookingPageProps) {
             <div className="red-line" />
             <span className="label-tag">Онлайн-запись</span>
           </div>
-          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Запись на ремонт</h1>
-          <p className="text-muted-foreground text-sm">Заполните форму — мы перезвоним в течение 15 минут</p>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">
+            {s("booking","page_title","Запись на ремонт")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {s("booking","page_subtitle","Заполните форму — мы перезвоним в течение 15 минут")}
+          </p>
         </div>
       </div>
 
@@ -87,9 +89,11 @@ export default function CartPage({ onNavigate }: BookingPageProps) {
               <div className="w-16 h-16 bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
                 <Icon name="CheckCircle" size={36} className="text-primary" />
               </div>
-              <h2 className="font-display font-bold text-2xl uppercase mb-3">Заявка принята!</h2>
+              <h2 className="font-display font-bold text-2xl uppercase mb-3">
+                {s("booking","success_title","Заявка принята!")}
+              </h2>
               <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-                Наш менеджер свяжется с вами по номеру <strong>{form.phone}</strong> в течение 15 минут для подтверждения записи.
+                {s("booking","success_text","Мы свяжемся с вами в ближайшее время для подтверждения записи.")}
               </p>
               <div className="card-dark p-4 mb-8 text-left space-y-2">
                 <div className="flex justify-between text-sm">
@@ -190,7 +194,7 @@ export default function CartPage({ onNavigate }: BookingPageProps) {
                       onChange={(e) => setForm({ ...form, location: e.target.value })}
                       className="input-dark"
                     >
-                      {locations.map((l) => <option key={l}>{l}</option>)}
+                      {[location1].map((l) => <option key={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>

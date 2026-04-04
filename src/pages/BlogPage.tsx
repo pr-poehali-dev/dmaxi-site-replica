@@ -1,15 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-
-// Страница Портфолио
-const works = [
-  { id: 1, title: "Капитальный ремонт BMW E60", category: "Двигатель", desc: "Замена поршневой группы, шлифовка ГБЦ, замена прокладок", before: "Стук двигателя, дымление", result: "Двигатель как новый, гарантия 1 год" },
-  { id: 2, title: "Кузовной ремонт Toyota Camry", category: "Кузов", desc: "Рихтовка переднего бампера и правого крыла, покраска в цвет", before: "Удар в правую переднюю часть", result: "Идеальное совпадение цвета, следов не видно" },
-  { id: 3, title: "Ремонт подвески Kia Sportage", category: "Ходовая", desc: "Замена передних стоек, шаровых опор, тяг стабилизатора", before: "Стуки при езде, плохая управляемость", result: "Плавный ход, устранены все посторонние звуки" },
-  { id: 4, title: "Электрика Ford Focus 3", category: "Электрика", desc: "Диагностика и ремонт системы зажигания, замена свечей и катушки", before: "Троит двигатель, горит Check Engine", result: "Стабильная работа двигателя, ошибки устранены" },
-  { id: 5, title: "ТО Hyundai Tucson", category: "ТО", desc: "Полное ТО по регламенту: масло, фильтры, тормозные колодки", before: "Плановое обслуживание", result: "Все жидкости заменены, система тормозов проверена" },
-  { id: 6, title: "Замена ДВС Nissan X-Trail", category: "Двигатель", desc: "Снятие и установка контрактного двигателя с полной обвязкой", before: "Гидроудар, полный выход из строя", result: "Автомобиль на ходу, контрактный двигатель с гарантией" },
-];
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const filterCats = ["Все", "Двигатель", "Кузов", "Ходовая", "Электрика", "ТО"];
 
@@ -18,7 +9,17 @@ interface PortfolioPageProps {
 }
 
 export default function BlogPage({ onNavigate }: PortfolioPageProps) {
+  const { s } = useSiteSettings();
   const [activeFilter, setActiveFilter] = useState("Все");
+
+  const works = [
+    { id: 1, title: s("portfolio","w1_title","Капитальный ремонт BMW E60"),    category: s("portfolio","w1_cat","Двигатель"), desc: s("portfolio","w1_desc","Замена поршневой группы, шлифовка ГБЦ, замена прокладок"),                        before: s("portfolio","w1_problem","Стук двигателя, дымление"),          result: s("portfolio","w1_result","Двигатель как новый, гарантия 1 год") },
+    { id: 2, title: s("portfolio","w2_title","Кузовной ремонт Toyota Camry"),  category: s("portfolio","w2_cat","Кузов"),     desc: s("portfolio","w2_desc","Рихтовка переднего бампера и правого крыла, покраска в цвет"),               before: s("portfolio","w2_problem","Удар в правую переднюю часть"),      result: s("portfolio","w2_result","Идеальное совпадение цвета, следов не видно") },
+    { id: 3, title: s("portfolio","w3_title","Ремонт подвески Kia Sportage"),  category: s("portfolio","w3_cat","Ходовая"),   desc: s("portfolio","w3_desc","Замена передних стоек, шаровых опор, тяг стабилизатора"),                     before: s("portfolio","w3_problem","Стуки при езде, плохая управляемость"), result: s("portfolio","w3_result","Плавный ход, устранены все посторонние звуки") },
+    { id: 4, title: s("portfolio","w4_title","Электрика Ford Focus 3"),        category: s("portfolio","w4_cat","Электрика"), desc: s("portfolio","w4_desc","Диагностика и ремонт системы зажигания, замена свечей и катушки"),            before: s("portfolio","w4_problem","Троит двигатель, горит Check Engine"), result: s("portfolio","w4_result","Стабильная работа двигателя, ошибки устранены") },
+    { id: 5, title: s("portfolio","w5_title","ТО Hyundai Tucson"),             category: s("portfolio","w5_cat","ТО"),        desc: s("portfolio","w5_desc","Полное ТО по регламенту: масло, фильтры, тормозные колодки"),                  before: s("portfolio","w5_problem","Плановое обслуживание"),              result: s("portfolio","w5_result","Все жидкости заменены, система тормозов проверена") },
+    { id: 6, title: s("portfolio","w6_title","Замена ДВС Nissan X-Trail"),     category: s("portfolio","w6_cat","Двигатель"), desc: s("portfolio","w6_desc","Снятие и установка контрактного двигателя с полной обвязкой"),               before: s("portfolio","w6_problem","Гидроудар, полный выход из строя"),   result: s("portfolio","w6_result","Автомобиль на ходу, контрактный двигатель с гарантией") },
+  ];
 
   const filtered = activeFilter === "Все" ? works : works.filter((w) => w.category === activeFilter);
 
@@ -38,9 +39,11 @@ export default function BlogPage({ onNavigate }: PortfolioPageProps) {
             <div className="red-line" />
             <span className="label-tag">Наши работы</span>
           </div>
-          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">Портфолио</h1>
+          <h1 className="font-display font-bold text-4xl lg:text-5xl uppercase mb-3">
+            {s("portfolio","page_title","Портфолио")}
+          </h1>
           <p className="text-muted-foreground text-sm max-w-lg">
-            Примеры выполненных работ — реальные случаи от наших мастеров
+            {s("portfolio","page_subtitle","Примеры выполненных работ — реальные случаи от наших мастеров")}
           </p>
         </div>
       </div>
@@ -93,7 +96,9 @@ export default function BlogPage({ onNavigate }: PortfolioPageProps) {
 
         {/* CTA */}
         <div className="mt-12 text-center">
-          <p className="text-muted-foreground text-sm mb-5">Нужен ремонт? Запишитесь онлайн прямо сейчас</p>
+          <p className="text-muted-foreground text-sm mb-5">
+            {s("portfolio","cta_text","Нужен ремонт? Запишитесь онлайн прямо сейчас")}
+          </p>
           <button onClick={() => onNavigate("booking")} className="btn-red">
             <Icon name="CalendarCheck" size={16} />
             Записаться на ремонт

@@ -17,11 +17,18 @@ interface SettingItem {
 type Sections = Record<string, SettingItem[]>;
 
 const SECTION_META: Record<string, { label: string; icon: string; desc: string }> = {
-  general:  { label: "Общие настройки",    icon: "Settings",    desc: "Название, телефон, адрес, логотип, соцсети" },
-  home:     { label: "Главная страница",    icon: "Home",        desc: "Hero-блок, статистика, CTA, блок клуба" },
-  about:    { label: "О компании",          icon: "Building2",   desc: "Заголовки, описание, статистика, история" },
-  contacts: { label: "Контакты",            icon: "MapPin",      desc: "Адреса, телефоны, часы работы, карта" },
-  footer:   { label: "Подвал сайта",        icon: "LayoutList",  desc: "Описание, соцсети, копирайт" },
+  general:   { label: "Общие настройки",   icon: "Settings",    desc: "Название компании, телефон, адрес, логотип, соцсети" },
+  header:    { label: "Шапка сайта",       icon: "PanelTop",    desc: "Кнопки и подписи в шапке" },
+  home:      { label: "Главная страница",   icon: "Home",        desc: "Hero-блок, статистика, CTA, блок клуба" },
+  about:     { label: "О компании",         icon: "Building2",   desc: "Заголовки, описание, статистика, история" },
+  services:  { label: "Услуги",            icon: "Wrench",      desc: "Заголовки, категории, названия и цены услуг" },
+  prices:    { label: "Стоимость",          icon: "Table2",      desc: "Прайс-лист: разделы, услуги, цены и время" },
+  booking:   { label: "Запись на ремонт",   icon: "CalendarCheck", desc: "Заголовки, адрес СТО, текст после отправки" },
+  club:      { label: "Клуб DD",            icon: "Star",        desc: "Заголовки, уровни карты, шаги получения, фото" },
+  shop:      { label: "Магазин",            icon: "ShoppingBag", desc: "Заголовок и подзаголовок магазина" },
+  portfolio: { label: "Портфолио",          icon: "ImageIcon",   desc: "Заголовок страницы, 6 работ (название, описание, проблема, результат)" },
+  contacts:  { label: "Контакты",           icon: "MapPin",      desc: "Адреса, телефоны, часы работы, карта" },
+  footer:    { label: "Подвал сайта",       icon: "LayoutList",  desc: "Логотип, описание, соцсети, копирайт" },
 };
 
 interface Props {
