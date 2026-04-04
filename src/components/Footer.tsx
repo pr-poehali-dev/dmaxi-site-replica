@@ -126,8 +126,8 @@ export default function Footer({ onNavigate }: FooterProps) {
         <div className="border-t border-border mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">{s("footer","copyright","© 2024 DD MAXI. Все права защищены.")}</span>
           <div className="flex gap-4 text-xs text-muted-foreground">
-            <button className="hover:text-foreground transition-colors">Политика конфиденциальности</button>
-            <button className="hover:text-foreground transition-colors">Пользовательское соглашение</button>
+            <button onClick={() => onNavigate("privacy")} className="hover:text-foreground transition-colors">Политика конфиденциальности</button>
+            <button onClick={() => onNavigate("terms")}   className="hover:text-foreground transition-colors">Пользовательское соглашение</button>
           </div>
         </div>
       </div>

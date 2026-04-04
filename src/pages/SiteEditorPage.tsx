@@ -27,8 +27,10 @@ const SECTION_META: Record<string, { label: string; icon: string; desc: string }
   club:      { label: "Клуб DD",            icon: "Star",        desc: "Заголовки, уровни карты, шаги получения, фото" },
   shop:      { label: "Магазин",            icon: "ShoppingBag", desc: "Заголовок и подзаголовок магазина" },
   portfolio: { label: "Портфолио",          icon: "ImageIcon",   desc: "Заголовок страницы, 6 работ (название, описание, проблема, результат)" },
-  contacts:  { label: "Контакты",           icon: "MapPin",      desc: "Адреса, телефоны, часы работы, карта" },
-  footer:    { label: "Подвал сайта",       icon: "LayoutList",  desc: "Логотип, описание, соцсети, копирайт" },
+  contacts:  { label: "Контакты",                       icon: "MapPin",      desc: "Адреса, телефоны, часы работы, карта" },
+  footer:    { label: "Подвал сайта",                  icon: "LayoutList",  desc: "Логотип, описание, соцсети, копирайт" },
+  privacy:   { label: "Политика конфиденциальности",   icon: "ShieldCheck", desc: "Заголовок, дата обновления и текст документа" },
+  terms:     { label: "Пользовательское соглашение",   icon: "FileText",    desc: "Заголовок, дата обновления и текст документа" },
 };
 
 interface Props {
