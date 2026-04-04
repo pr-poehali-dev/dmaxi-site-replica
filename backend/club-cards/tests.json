@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Card info by invalid token",
+      "method": "GET",
+      "path": "/?action=card_info&token=invalid_token_123",
+      "expectedStatus": 404,
+      "expectedBody": {"error": "string"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth, User } from "@/context/AuthContext";
 
-const ADMIN_URL    = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
-const MAILER_URL   = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
-const AUTH_URL     = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
-const CHAT_URL     = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
-const WALLET_URL   = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
-const SHOP_URL     = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
-const PACKAGES_URL = "https://functions.poehali.dev/4751dd0c-bf65-4377-a597-d9d580f4308d";
+const ADMIN_URL      = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
+const MAILER_URL     = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
+const AUTH_URL       = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
+const CHAT_URL       = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const WALLET_URL     = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
+const SHOP_URL       = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
+const PACKAGES_URL   = "https://functions.poehali.dev/4751dd0c-bf65-4377-a597-d9d580f4308d";
+const CLUB_CARDS_URL = "https://functions.poehali.dev/4cc0091e-cb30-4837-926f-54eb05b99c99";
 
 /* ── interfaces ── */
 interface AdminUser {
@@ -43,15 +44,16 @@ const STS_LIMIT = 2;
 const EMOJI_LIST = ["😊","😂","❤️","👍","🔥","🚗","🛠️","✅","⚠️","📞","📸","🎉","💪","🙏","😎","🤝","👌","💯","⭐","🏆","🔧","⚙️","🛞","🔑","📋","📅","💰","✨","😅","🤔"];
 
 const MANAGE_TABS = [
-  { id: "stats",      label: "Дашборд",           icon: "BarChart3" },
-  { id: "users",      label: "Пользователи",      icon: "Users" },
-  { id: "user_mgmt",  label: "Управление",        icon: "UserCog" },
-  { id: "wallets",    label: "Кошельки",          icon: "Wallet" },
-  { id: "shop_orders", label: "Заказы магазина",  icon: "ShoppingBag" },
-  { id: "packages",   label: "Комплексы",         icon: "Package" },
-  { id: "visits",     label: "Визиты",            icon: "CalendarCheck" },
-  { id: "add_visit",  label: "Добавить визит",    icon: "Plus" },
-  { id: "mailing",    label: "Рассылка",          icon: "Send" },
+  { id: "stats",       label: "Дашборд",           icon: "BarChart3" },
+  { id: "users",       label: "Пользователи",      icon: "Users" },
+  { id: "user_mgmt",   label: "Управление",        icon: "UserCog" },
+  { id: "wallets",     label: "Кошельки",          icon: "Wallet" },
+  { id: "club_cards",  label: "Клубные карты",     icon: "CreditCard" },
+  { id: "shop_orders", label: "Заказы магазина",   icon: "ShoppingBag" },
+  { id: "packages",    label: "Комплексы",         icon: "Package" },
+  { id: "visits",      label: "Визиты",            icon: "CalendarCheck" },
+  { id: "add_visit",   label: "Добавить визит",    icon: "Plus" },
+  { id: "mailing",     label: "Рассылка",          icon: "Send" },
 ];
 const PERSONAL_TABS = [
   { id: "my_mail",     label: "Моя почта",    icon: "Mail" },
@@ -178,6 +180,31 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [myTopupLoading, setMyTopupLoading] = useState(false);
   const [myTopupMsg, setMyTopupMsg] = useState("");
 
+  /* club cards state */
+  interface ClubCardUser {
+    id: number; name: string; phone: string; email?: string;
+    club_level: string; bonus_points: number;
+    club_card_number: string; qr_token: string;
+    car_model?: string; created_at: string;
+  }
+  const [ccUsers,       setCcUsers]       = useState<ClubCardUser[]>([]);
+  const [ccTotal,       setCcTotal]       = useState(0);
+  const [ccLoading,     setCcLoading]     = useState(false);
+  const [ccSearch,      setCcSearch]      = useState("");
+  const [ccAssigning,   setCcAssigning]   = useState(false);
+  const [ccAssignMsg,   setCcAssignMsg]   = useState("");
+  const [ccSelected,    setCcSelected]    = useState<ClubCardUser | null>(null);
+
+  // Настройки дизайна карты
+  const [cardBg,        setCardBg]        = useState("#1a1a2e");
+  const [cardBg2,       setCardBg2]       = useState("#cc1a1a");
+  const [cardTextColor, setCardTextColor] = useState("#ffffff");
+  const [cardLogo,      setCardLogo]      = useState("DD MAXI");
+  const [cardSubtitle,  setCardSubtitle]  = useState("ООО «ДДМАКСИ СТРОЙРЕМСЕРВИС»");
+  const [cardBgImage,   setCardBgImage]   = useState("");
+  const [cardColorMode, setCardColorMode] = useState<"bw"|"color">("color");
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
+
   /* personal state */
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifLoading,  setNotifLoading]  = useState(false);
@@ -237,6 +264,25 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     } finally { setMyWalletLoading(false); }
   }, [H]);
 
+  const loadCcUsers = useCallback(async (q = "") => {
+    setCcLoading(true);
+    try {
+      const r = await fetch(`${CLUB_CARDS_URL}?action=users&search=${encodeURIComponent(q)}`, { headers: H() });
+      const d = await r.json();
+      if (r.ok) { setCcUsers(d.users || []); setCcTotal(d.total || 0); }
+    } finally { setCcLoading(false); }
+  }, [H]);
+
+  const assignAllCards = async () => {
+    setCcAssigning(true); setCcAssignMsg("");
+    try {
+      const r = await fetch(`${CLUB_CARDS_URL}?action=assign_all`, { method: "POST", headers: H() });
+      const d = await r.json();
+      if (r.ok) { setCcAssignMsg(`Готово! Присвоено карт: ${d.assigned}`); loadCcUsers(ccSearch); }
+      else setCcAssignMsg(d.error || "Ошибка");
+    } finally { setCcAssigning(false); }
+  };
+
   const loadUserDetail = useCallback(async (id: number) => {
     setUserDetailLoading(true);
     try {
@@ -290,6 +336,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "users")    loadUsers();
     if (activeTab === "visits")   loadVisits();
     if (activeTab === "wallets")     { loadAdminWallets(); loadMyWallet(); }
+    if (activeTab === "club_cards")  loadCcUsers();
     if (activeTab === "shop_orders") loadShopOrders();
     if (activeTab === "packages")    loadPackages();
     if (activeTab === "my_mail")  loadNotifications();
@@ -973,6 +1020,339 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                           <button type="button" onClick={()=>{setAdjustForm(null);setAdjustMsg("");}} className="btn-ghost py-2 px-4 text-xs">Отмена</button>
                         </div>
                       </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── КЛУБНЫЕ КАРТЫ ── */}
+            {activeTab === "club_cards" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="label-tag">Клубные карты DD MAXI SRS</div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={assignAllCards} disabled={ccAssigning} className="btn-ghost text-xs py-1.5 px-3 disabled:opacity-60">
+                      {ccAssigning ? <><Icon name="Loader2" size={13} className="animate-spin"/>Присваиваю...</> : <><Icon name="RefreshCw" size={13}/>Присвоить всем</>}
+                    </button>
+                  </div>
+                </div>
+                {ccAssignMsg && <div className={`text-xs px-3 py-2 rounded border ${ccAssignMsg.startsWith("Готово")?"border-green-500/30 bg-green-500/10 text-green-400":"border-destructive/30 bg-destructive/10 text-destructive"}`}>{ccAssignMsg}</div>}
+
+                {/* ── КОНСТРУКТОР КАРТЫ ── */}
+                <div className="card-dark p-5">
+                  <div className="label-tag mb-4">Конструктор карты</div>
+                  <div className="grid lg:grid-cols-2 gap-6">
+
+                    {/* Настройки */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="label-tag mb-1.5 block">Режим печати</label>
+                        <div className="flex gap-2">
+                          <button onClick={()=>setCardColorMode("color")} className={`flex-1 py-2 text-xs font-display font-bold uppercase border transition-colors ${cardColorMode==="color"?"border-primary bg-primary/10 text-primary":"border-border text-muted-foreground hover:border-primary/40"}`}>
+                            <Icon name="Palette" size={13} className="inline mr-1"/>Цветная
+                          </button>
+                          <button onClick={()=>setCardColorMode("bw")} className={`flex-1 py-2 text-xs font-display font-bold uppercase border transition-colors ${cardColorMode==="bw"?"border-primary bg-primary/10 text-primary":"border-border text-muted-foreground hover:border-primary/40"}`}>
+                            <Icon name="Printer" size={13} className="inline mr-1"/>Ч/Б лазер
+                          </button>
+                        </div>
+                      </div>
+                      {cardColorMode === "color" && (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="label-tag mb-1.5 block">Фон карты (осн.)</label>
+                              <input type="color" value={cardBg} onChange={e=>setCardBg(e.target.value)} className="w-full h-10 rounded border border-border cursor-pointer bg-transparent" />
+                            </div>
+                            <div>
+                              <label className="label-tag mb-1.5 block">Фон карты (акцент)</label>
+                              <input type="color" value={cardBg2} onChange={e=>setCardBg2(e.target.value)} className="w-full h-10 rounded border border-border cursor-pointer bg-transparent" />
+                            </div>
+                            <div>
+                              <label className="label-tag mb-1.5 block">Цвет текста</label>
+                              <input type="color" value={cardTextColor} onChange={e=>setCardTextColor(e.target.value)} className="w-full h-10 rounded border border-border cursor-pointer bg-transparent" />
+                            </div>
+                            <div>
+                              <label className="label-tag mb-1.5 block">Фоновый рисунок</label>
+                              <button onClick={()=>bgImageInputRef.current?.click()} className="btn-ghost text-xs py-2 w-full">
+                                <Icon name="Upload" size={13}/>{cardBgImage ? "Заменить" : "Загрузить"}
+                              </button>
+                              <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={e=>{
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                const reader = new FileReader();
+                                reader.onload = ev => setCardBgImage(ev.target?.result as string);
+                                reader.readAsDataURL(f);
+                                e.target.value = "";
+                              }} />
+                            </div>
+                          </div>
+                          {cardBgImage && (
+                            <button onClick={()=>setCardBgImage("")} className="text-xs text-destructive hover:underline">
+                              <Icon name="X" size={11} className="inline mr-1"/>Удалить фоновый рисунок
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <div>
+                        <label className="label-tag mb-1.5 block">Название на карте</label>
+                        <input type="text" value={cardLogo} onChange={e=>setCardLogo(e.target.value)} className="input-dark" placeholder="DD MAXI" />
+                      </div>
+                      <div>
+                        <label className="label-tag mb-1.5 block">Подпись под названием</label>
+                        <input type="text" value={cardSubtitle} onChange={e=>setCardSubtitle(e.target.value)} className="input-dark" placeholder="ООО «ДДМАКСИ»" />
+                      </div>
+                    </div>
+
+                    {/* Превью карты */}
+                    <div>
+                      <div className="label-tag mb-2">Предпросмотр</div>
+                      <div className="flex flex-col gap-3">
+                        {/* Лицевая сторона */}
+                        <div
+                          id="card-preview-front"
+                          style={{
+                            width: 340, height: 214,
+                            background: cardColorMode === "bw"
+                              ? "white"
+                              : (cardBgImage
+                                ? `url(${cardBgImage}) center/cover`
+                                : `linear-gradient(135deg, ${cardBg} 0%, ${cardBg2} 100%)`),
+                            color: cardColorMode === "bw" ? "#111" : cardTextColor,
+                            borderRadius: 12,
+                            padding: "18px 20px",
+                            position: "relative",
+                            overflow: "hidden",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+                            fontFamily: "Arial, sans-serif",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            border: cardColorMode === "bw" ? "2px solid #333" : "none",
+                          }}
+                        >
+                          {cardColorMode === "color" && cardBgImage && (
+                            <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.45)",borderRadius:12}} />
+                          )}
+                          {cardColorMode === "color" && !cardBgImage && (
+                            <div style={{position:"absolute",top:-40,right:-40,width:160,height:160,borderRadius:"50%",background:"rgba(255,255,255,0.07)"}} />
+                          )}
+                          <div style={{position:"relative",zIndex:1}}>
+                            <div style={{fontSize:20,fontWeight:900,letterSpacing:"0.08em",textTransform:"uppercase"}}>{cardLogo}</div>
+                            <div style={{fontSize:9,opacity:0.75,marginTop:2,letterSpacing:"0.04em"}}>{cardSubtitle}</div>
+                          </div>
+                          <div style={{position:"relative",zIndex:1}}>
+                            <div style={{fontSize:11,opacity:0.7,marginBottom:2,letterSpacing:"0.12em",textTransform:"uppercase"}}>Клубная карта</div>
+                            <div style={{fontSize:16,fontWeight:700,letterSpacing:"0.2em",fontFamily:"monospace"}}>DD-000000</div>
+                            <div style={{fontSize:12,marginTop:6,fontWeight:600}}>Иванов Иван</div>
+                            <div style={{fontSize:10,opacity:0.75}}>Бронза · 0 баллов</div>
+                          </div>
+                        </div>
+
+                        {/* Обратная сторона */}
+                        <div
+                          style={{
+                            width: 340, height: 214,
+                            background: cardColorMode === "bw" ? "white" : `linear-gradient(135deg, ${cardBg} 0%, ${cardBg2} 100%)`,
+                            color: cardColorMode === "bw" ? "#111" : cardTextColor,
+                            borderRadius: 12,
+                            padding: "18px 20px",
+                            position: "relative",
+                            overflow: "hidden",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+                            fontFamily: "Arial, sans-serif",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 16,
+                            border: cardColorMode === "bw" ? "2px solid #333" : "none",
+                          }}
+                        >
+                          <div style={{width:80,height:80,background:"white",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                            <div style={{fontSize:9,color:"#333",textAlign:"center",padding:4}}>QR-код<br/>пользователя</div>
+                          </div>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:10,opacity:0.7,marginBottom:4,letterSpacing:"0.1em",textTransform:"uppercase"}}>Предъявите при визите</div>
+                            <div style={{fontSize:11,lineHeight:1.5,opacity:0.85}}>Скидки и бонусы по программе лояльности DD MAXI SRS</div>
+                            <div style={{fontSize:9,opacity:0.6,marginTop:6}}>ddmaxi.ru</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Список пользователей */}
+                <div className="card-dark p-5">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <div className="label-tag">Пользователи ({ccTotal})</div>
+                    <div className="flex gap-2">
+                      <input type="text" value={ccSearch} onChange={e=>setCcSearch(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&loadCcUsers(ccSearch)}
+                        placeholder="Поиск..." className="input-dark text-xs py-1.5 px-3 w-48" />
+                      <button onClick={()=>loadCcUsers(ccSearch)} className="btn-ghost text-xs py-1.5 px-3">
+                        <Icon name="Search" size={13}/>
+                      </button>
+                    </div>
+                  </div>
+
+                  {ccLoading ? (
+                    <div className="p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary"/></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {ccUsers.map(u => (
+                        <div key={u.id} className="flex items-center gap-3 p-3 border border-border rounded flex-wrap hover:border-primary/30 transition-colors">
+                          <div className="w-8 h-8 bg-primary/10 border border-primary/20 rounded flex items-center justify-center shrink-0">
+                            <Icon name="CreditCard" size={14} className="text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-display font-bold text-sm uppercase">{u.name}</div>
+                            <div className="flex gap-2 flex-wrap mt-0.5">
+                              <span className="label-tag">{u.phone}</span>
+                              <span className="label-tag text-primary">{u.club_card_number}</span>
+                              <span className="label-tag">{u.club_level === "bronze" ? "Бронза" : u.club_level === "silver" ? "Серебро" : u.club_level === "gold" ? "Золото" : "Платинум"}</span>
+                              <span className="label-tag">{u.bonus_points} бал.</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setCcSelected(u)}
+                            className="btn-ghost text-xs py-1.5 px-3 shrink-0">
+                            <Icon name="Printer" size={13}/>Распечатать
+                          </button>
+                        </div>
+                      ))}
+                      {ccUsers.length === 0 && (
+                        <div className="p-8 text-center text-muted-foreground text-sm">Пользователей нет</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Модал печати карты конкретного пользователя */}
+                {ccSelected && (
+                  <div className="fixed inset-0 bg-background/80 backdrop-blur z-50 flex items-center justify-center p-4" onClick={()=>setCcSelected(null)}>
+                    <div className="card-dark w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+                      <div className="flex items-center justify-between p-5 border-b border-border">
+                        <div className="font-display font-bold uppercase tracking-wide text-sm">Карта: {ccSelected.name}</div>
+                        <button onClick={()=>setCcSelected(null)} className="text-muted-foreground hover:text-foreground"><Icon name="X" size={18}/></button>
+                      </div>
+                      <div className="p-5">
+                        <div className="label-tag mb-3">Предпросмотр перед печатью</div>
+                        {/* Превью лицевая */}
+                        <div
+                          style={{
+                            width: "100%", maxWidth: 400, aspectRatio: "85.6/54",
+                            background: cardColorMode === "bw"
+                              ? "white"
+                              : (cardBgImage
+                                ? `url(${cardBgImage}) center/cover`
+                                : `linear-gradient(135deg, ${cardBg} 0%, ${cardBg2} 100%)`),
+                            color: cardColorMode === "bw" ? "#111" : cardTextColor,
+                            borderRadius: 12,
+                            padding: "5% 6%",
+                            position: "relative",
+                            overflow: "hidden",
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+                            fontFamily: "Arial, sans-serif",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            border: cardColorMode === "bw" ? "2px solid #333" : "none",
+                            marginBottom: 12,
+                          }}
+                        >
+                          {cardColorMode === "color" && cardBgImage && (
+                            <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.45)",borderRadius:12}} />
+                          )}
+                          <div style={{position:"relative",zIndex:1}}>
+                            <div style={{fontSize:"clamp(14px,4vw,22px)",fontWeight:900,letterSpacing:"0.08em",textTransform:"uppercase"}}>{cardLogo}</div>
+                            <div style={{fontSize:"clamp(8px,2vw,10px)",opacity:0.75,marginTop:2}}>{cardSubtitle}</div>
+                          </div>
+                          <div style={{position:"relative",zIndex:1}}>
+                            <div style={{fontSize:"clamp(9px,2vw,11px)",opacity:0.7,marginBottom:2,letterSpacing:"0.12em",textTransform:"uppercase"}}>Клубная карта</div>
+                            <div style={{fontSize:"clamp(13px,3vw,16px)",fontWeight:700,letterSpacing:"0.2em",fontFamily:"monospace"}}>{ccSelected.club_card_number}</div>
+                            <div style={{fontSize:"clamp(11px,2.5vw,13px)",marginTop:4,fontWeight:600}}>{ccSelected.name}</div>
+                            <div style={{fontSize:"clamp(9px,2vw,11px)",opacity:0.75}}>
+                              {ccSelected.club_level === "bronze" ? "Бронза" : ccSelected.club_level === "silver" ? "Серебро" : ccSelected.club_level === "gold" ? "Золото" : "Платинум"}
+                              {" · "}{ccSelected.bonus_points} баллов
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-5">
+                          <button
+                            onClick={() => {
+                              const levelLabel = ccSelected.club_level === "bronze" ? "Бронза" : ccSelected.club_level === "silver" ? "Серебро" : ccSelected.club_level === "gold" ? "Золото" : "Платинум";
+                              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/?card=${ccSelected.qr_token}`)}`;
+                              const isBw = cardColorMode === "bw";
+                              const bgStyle = isBw ? "background:#fff;" : (cardBgImage ? `background:url('${cardBgImage}') center/cover;` : `background:linear-gradient(135deg, ${cardBg} 0%, ${cardBg2} 100%);`);
+                              const textCol = isBw ? "#111" : cardTextColor;
+                              const border  = isBw ? "border:2px solid #333;" : "";
+
+                              const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"/>
+<title>Клубная карта ${ccSelected.club_card_number}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+@page { size: 85.6mm 54mm; margin: 0; }
+body { font-family: Arial, sans-serif; }
+.page { width:85.6mm; min-height:54mm; padding:5mm; display:flex; flex-direction:column; justify-content:space-between; page-break-after: always; ${bgStyle} color:${textCol}; position:relative; overflow:hidden; ${border} }
+.overlay { position:absolute; inset:0; background:rgba(0,0,0,0.45); }
+.rel { position:relative; z-index:1; }
+.logo { font-size:16pt; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
+.sub  { font-size:6pt; opacity:0.75; margin-top:1mm; }
+.cardno { font-size:12pt; font-weight:700; letter-spacing:0.2em; font-family:monospace; }
+.uname  { font-size:10pt; margin-top:1.5mm; font-weight:600; }
+.ulevel { font-size:8pt; opacity:0.75; }
+.clabel { font-size:7pt; opacity:0.7; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:1mm; }
+/* Обратная */
+.back { width:85.6mm; min-height:54mm; padding:5mm; display:flex; align-items:center; gap:5mm; ${bgStyle} color:${textCol}; position:relative; overflow:hidden; ${border} }
+.qr   { width:22mm; height:22mm; background:white; border-radius:2mm; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.qr img { width:20mm; height:20mm; }
+.info-text { font-size:7pt; opacity:0.85; line-height:1.5; }
+.info-sub  { font-size:6pt; opacity:0.6; margin-top:1.5mm; }
+.circle { position:absolute; top:-15mm; right:-15mm; width:40mm; height:40mm; border-radius:50%; background:rgba(255,255,255,0.07); }
+</style></head>
+<body>
+<div class="page">
+  ${cardColorMode==="color"&&cardBgImage?'<div class="overlay"></div>':''}
+  ${cardColorMode==="color"&&!cardBgImage?'<div class="circle"></div>':''}
+  <div class="rel">
+    <div class="logo">${cardLogo}</div>
+    <div class="sub">${cardSubtitle}</div>
+  </div>
+  <div class="rel">
+    <div class="clabel">Клубная карта</div>
+    <div class="cardno">${ccSelected.club_card_number}</div>
+    <div class="uname">${ccSelected.name}</div>
+    <div class="ulevel">${levelLabel} · ${ccSelected.bonus_points} баллов</div>
+  </div>
+</div>
+<div class="back">
+  ${cardColorMode==="color"&&cardBgImage?'<div class="overlay"></div>':''}
+  <div class="qr" style="position:relative;z-index:1">
+    <img src="${qrUrl}" alt="QR" />
+  </div>
+  <div style="position:relative;z-index:1;flex:1">
+    <div class="clabel">Предъявите при визите</div>
+    <div class="info-text">Скидки и бонусы по программе лояльности DD MAXI SRS</div>
+    <div class="info-sub">ddmaxi.ru · Тел: +7 (985) 506-08-14</div>
+  </div>
+</div>
+<script>
+  const qrImg = document.querySelector('.qr img');
+  qrImg.onload = () => { window.print(); window.onafterprint = () => window.close(); };
+  qrImg.onerror = () => { window.print(); window.onafterprint = () => window.close(); };
+  setTimeout(() => { window.print(); window.onafterprint = () => window.close(); }, 3000);
+</script>
+</body></html>`;
+                              const w = window.open("", "_blank", "width=420,height=320");
+                              if (w) { w.document.write(html); w.document.close(); }
+                            }}
+                            className="btn-red flex-1">
+                            <Icon name="Printer" size={15}/>Распечатать карту
+                          </button>
+                          <button onClick={()=>setCcSelected(null)} className="btn-ghost px-5">Закрыть</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
