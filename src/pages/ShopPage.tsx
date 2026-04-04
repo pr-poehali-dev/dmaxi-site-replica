@@ -109,6 +109,8 @@ export default function ShopPage({ onNavigate }: ShopPageProps) {
       });
       const d = await r.json();
       if (r.ok && d.confirmation_url) {
+        localStorage.setItem("yk_pending_order_id", String(d.order_id));
+        localStorage.setItem("yk_pending_type", "shop");
         window.location.href = d.confirmation_url;
       } else {
         setMsg(d.error || "Ошибка при создании платежа");

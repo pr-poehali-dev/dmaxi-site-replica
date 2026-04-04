@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -17,52 +17,108 @@ import ShopPage from "@/pages/ShopPage";             // Магазин
 import AutoGoodsPage from "@/pages/AutoGoodsPage";   // Автотовары
 import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
 
+const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
+const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
+
 const PAYMENT_MESSAGES: Record<string, { title: string; description: string }> = {
-  topup:   { title: "Кошелёк пополнен!",         description: "Средства зачислены на ваш кошелёк." },
-  shop:    { title: "Оплата прошла успешно!",     description: "Ваш заказ в магазине оформлен." },
-  service: { title: "Оплата прошла успешно!",     description: "Услуга оплачена. Спасибо!" },
-  goods:   { title: "Оплата прошла успешно!",     description: "Товар заказан. Менеджер свяжется с вами." },
-  default: { title: "Оплата прошла успешно!",     description: "Платёж принят. Спасибо!" },
+  topup:   { title: "Кошелёк пополнен!",      description: "Средства зачислены на ваш кошелёк." },
+  shop:    { title: "Оплата прошла успешно!",  description: "Ваш заказ в магазине оформлен." },
+  service: { title: "Оплата прошла успешно!",  description: "Услуга оплачена. Спасибо!" },
+  goods:   { title: "Оплата прошла успешно!",  description: "Товар заказан. Менеджер свяжется с вами." },
+  default: { title: "Оплата прошла успешно!",  description: "Платёж принят. Спасибо!" },
+};
+
+const PAGE_BY_TYPE: Record<string, string> = {
+  topup: "account", shop: "shop", goods: "autogoods", service: "servicepay",
 };
 
 export default function Index() {
   const [currentPage, setCurrentPage] = useState("home");
+  const checkedRef = useRef(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    if (checkedRef.current) return;
+    checkedRef.current = true;
+
+    const params  = new URLSearchParams(window.location.search);
     const payment = params.get("payment");
     const type    = params.get("type") || "default";
 
-    if (payment === "success") {
-      const msg = PAYMENT_MESSAGES[type] || PAYMENT_MESSAGES.default;
-      setTimeout(() => {
-        toast.success(msg.title, {
-          description: msg.description,
-          duration: 6000,
-        });
-      }, 500);
-
-      // Очищаем URL без перезагрузки
-      const clean = window.location.pathname;
-      window.history.replaceState({}, "", clean);
-
-      // Перенаправляем в нужный раздел
-      if (type === "topup") setCurrentPage("account");
-      if (type === "shop")  setCurrentPage("shop");
-      if (type === "goods") setCurrentPage("autogoods");
-      if (type === "service") setCurrentPage("servicepay");
-    }
+    // Очищаем URL сразу
+    window.history.replaceState({}, "", window.location.pathname);
 
     if (payment === "cancel") {
-      setTimeout(() => {
-        toast.error("Оплата отменена", {
-          description: "Платёж не был завершён. Попробуйте ещё раз.",
-          duration: 5000,
-        });
-      }, 500);
-      const clean = window.location.pathname;
-      window.history.replaceState({}, "", clean);
+      toast.error("Оплата отменена", {
+        description: "Платёж не был завершён. Попробуйте ещё раз.",
+        duration: 5000,
+      });
+      return;
     }
+
+    if (payment !== "success") return;
+
+    // Переходим в нужный раздел
+    const targetPage = PAGE_BY_TYPE[type];
+    if (targetPage) setCurrentPage(targetPage);
+
+    // Читаем сохранённый order_id и токен
+    const orderId = localStorage.getItem("yk_pending_order_id");
+    const token   = localStorage.getItem("ddmaxi_token") || "";
+
+    if (!orderId || !token) {
+      // Нет order_id — просто показываем тост
+      setTimeout(() => {
+        const msg = PAYMENT_MESSAGES[type] || PAYMENT_MESSAGES.default;
+        toast.success(msg.title, { description: msg.description, duration: 6000 });
+      }, 600);
+      return;
+    }
+
+    // Есть order_id — проверяем статус у сервера с ретраями
+    const checkUrl = type === "shop"
+      ? `${SHOP_URL}?action=check_payment&order_id=${orderId}`
+      : `${WALLET_URL}?action=check_payment&order_id=${orderId}`;
+
+    const tryCheck = async (attempt: number) => {
+      try {
+        const r = await fetch(checkUrl, { headers: { "X-Auth-Token": token } });
+        const d = await r.json();
+
+        if (d.status === "succeeded" || d.status === "paid") {
+          localStorage.removeItem("yk_pending_order_id");
+          localStorage.removeItem("yk_pending_type");
+          const msg = PAYMENT_MESSAGES[type] || PAYMENT_MESSAGES.default;
+          toast.success(msg.title, { description: msg.description, duration: 7000 });
+          return;
+        }
+
+        if (d.status === "canceled" || d.status === "cancelled") {
+          localStorage.removeItem("yk_pending_order_id");
+          localStorage.removeItem("yk_pending_type");
+          toast.error("Оплата отменена", {
+            description: "Платёж был отменён. Попробуйте ещё раз.",
+            duration: 5000,
+          });
+          return;
+        }
+
+        // Статус ещё pending — повторяем (до 5 раз с паузой 2с)
+        if (attempt < 5) {
+          setTimeout(() => tryCheck(attempt + 1), 2000);
+        } else {
+          // Всё равно показываем тост — ЮКасса перенаправила, значит оплата скорее всего прошла
+          const msg = PAYMENT_MESSAGES[type] || PAYMENT_MESSAGES.default;
+          toast.success(msg.title, {
+            description: msg.description + " Статус обновится в личном кабинете.",
+            duration: 7000,
+          });
+        }
+      } catch {
+        if (attempt < 3) setTimeout(() => tryCheck(attempt + 1), 2000);
+      }
+    };
+
+    setTimeout(() => tryCheck(1), 1000);
   }, []);
 
   const navigate = (page: string) => {

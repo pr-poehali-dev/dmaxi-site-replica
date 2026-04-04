@@ -432,15 +432,17 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                       onClick={async () => {
                         setTopupLoading(true); setTopupMsg("");
                         try {
-                          const returnUrl = window.location.origin + "/?payment=success&type=topup";
                           const r = await fetch(`${WALLET_URL}?action=create_payment`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },
-                            body: JSON.stringify({ amount: Number(topupAmount), return_url: returnUrl })
+                            body: JSON.stringify({ amount: Number(topupAmount), return_url: window.location.origin + "/?payment=success&type=topup" })
                           });
                           const d = await r.json();
                           if (r.ok && d.confirmation_url) {
                             setPendingOrderId(d.order_id);
+                            // Сохраняем order_id в localStorage чтобы проверить при возврате
+                            localStorage.setItem("yk_pending_order_id", String(d.order_id));
+                            localStorage.setItem("yk_pending_type", "topup");
                             window.location.href = d.confirmation_url;
                           } else {
                             setTopupMsg(d.error || "Ошибка создания платежа");

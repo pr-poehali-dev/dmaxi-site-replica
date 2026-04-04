@@ -128,6 +128,8 @@ export default function ServicePayPage({ onNavigate }: ServicePayPageProps) {
       });
       const d = await r.json();
       if (r.ok && d.confirmation_url) {
+        localStorage.setItem("yk_pending_order_id", String(d.order_id));
+        localStorage.setItem("yk_pending_type", "service");
         window.location.href = d.confirmation_url;
       } else {
         setPayMsg(d.error || "Ошибка платёжной системы");
@@ -153,7 +155,11 @@ export default function ServicePayPage({ onNavigate }: ServicePayPageProps) {
           body: JSON.stringify({ amount, description: `Оплата услуги автосервиса${note ? `: ${note}` : ""}`, return_url: window.location.origin + "/?payment=success&type=service" })
         });
         const d = await r.json();
-        if (r.ok && d.confirmation_url) { window.location.href = d.confirmation_url; return; }
+        if (r.ok && d.confirmation_url) {
+          localStorage.setItem("yk_pending_order_id", String(d.order_id));
+          localStorage.setItem("yk_pending_type", "service");
+          window.location.href = d.confirmation_url; return;
+        }
         setPayMsg(d.error || "Ошибка платёжной системы");
       } else {
         const r = await fetch(`${WALLET_URL}?action=spend`, {

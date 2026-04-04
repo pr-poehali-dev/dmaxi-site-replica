@@ -123,6 +123,8 @@ export default function AutoGoodsPage({ onNavigate }: AutoGoodsPageProps) {
       });
       const d = await r.json();
       if (r.ok && d.confirmation_url) {
+        localStorage.setItem("yk_pending_order_id", String(d.order_id));
+        localStorage.setItem("yk_pending_type", "goods");
         window.location.href = d.confirmation_url;
       } else {
         setOrderMsg(d.error || "Ошибка платёжной системы");
