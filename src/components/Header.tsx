@@ -3,17 +3,6 @@ import Icon from "@/components/ui/icon";
 import { useAuth } from "@/context/AuthContext";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
-const NAV = [
-  { id: "home",      label: "Главная" },
-  { id: "services",  label: "Услуги" },
-  { id: "prices",    label: "Стоимость" },
-  { id: "booking",   label: "Запись" },
-  { id: "shop",      label: "Магазин" },
-  { id: "club",      label: "Клуб DD" },
-  { id: "portfolio", label: "Портфолио" },
-  { id: "contacts",  label: "Контакты" },
-];
-
 interface HeaderProps {
   currentPage: string;
   onNavigate: (p: string) => void;
@@ -23,6 +12,17 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const { s } = useSiteSettings();
+
+  const nav = [
+    { id: "home",      label: s("header","nav_home","Главная") },
+    { id: "services",  label: s("header","nav_services","Услуги") },
+    { id: "prices",    label: s("header","nav_prices","Стоимость") },
+    { id: "booking",   label: s("header","nav_booking","Запись") },
+    { id: "shop",      label: s("header","nav_shop","Магазин") },
+    { id: "club",      label: s("header","nav_club","Клуб DD") },
+    { id: "portfolio", label: s("header","nav_portfolio","Портфолио") },
+    { id: "contacts",  label: s("header","nav_contacts","Контакты") },
+  ];
 
   return (
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
@@ -64,9 +64,9 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
           </div>
         </button>
 
-        {/* Desktop nav — показываем от xl, на lg скрываем часть пунктов */}
+        {/* Desktop nav */}
         <nav className="hidden lg:flex items-center gap-2 xl:gap-5 flex-1 overflow-hidden">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
@@ -80,7 +80,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
         {/* CTA */}
         <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
           <button onClick={() => onNavigate("booking")} className="btn-red hidden sm:flex text-[11px] xl:text-xs py-2 xl:py-2.5 px-3 xl:px-5 whitespace-nowrap">
-            Записаться
+            {s("header","btn_book","Записаться")}
           </button>
           {user ? (
             <button
@@ -90,13 +90,13 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
               <div className="w-5 h-5 bg-primary flex items-center justify-center text-white text-[9px] font-display font-black shrink-0">
                 {user.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)}
               </div>
-              {user.role === "admin" ? "Админ" : "Кабинет"}
+              {user.role === "admin" ? s("header","btn_admin","Админ") : s("header","btn_cabinet","Кабинет")}
             </button>
           ) : (
             <button onClick={() => onNavigate("login")} className="btn-ghost hidden md:flex text-[11px] xl:text-xs py-2 xl:py-2.5 px-3 xl:px-5 items-center gap-1.5 whitespace-nowrap">
               <Icon name="User" size={13} />
-              <span className="hidden xl:inline">Войти / Регистрация</span>
-              <span className="xl:hidden">Войти</span>
+              <span className="hidden xl:inline">{s("header","btn_login","Войти / Регистрация")}</span>
+              <span className="xl:hidden">{s("header","btn_login_short","Войти")}</span>
             </button>
           )}
           <button
@@ -112,7 +112,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
       {open && (
         <div className="lg:hidden border-t border-border bg-card animate-slide-down">
           <nav className="container mx-auto py-3 flex flex-col gap-0.5">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <button
                 key={item.id}
                 onClick={() => { onNavigate(item.id); setOpen(false); }}
@@ -130,21 +130,21 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
                   className="btn-ghost flex-1 justify-center flex items-center gap-2 text-xs py-2.5"
                 >
                   <Icon name="User" size={14} />
-                  {user.role === "admin" ? "Панель администратора" : "Личный кабинет"}
+                  {user.role === "admin" ? s("header","btn_admin","Админ") : s("header","btn_cabinet","Кабинет")}
                 </button>
               ) : (
                 <button
                   onClick={() => { onNavigate("login"); setOpen(false); }}
                   className="btn-ghost flex-1 justify-center text-xs py-2.5"
                 >
-                  Войти / Регистрация
+                  {s("header","btn_login","Войти / Регистрация")}
                 </button>
               )}
               <button
                 onClick={() => { onNavigate("booking"); setOpen(false); }}
                 className="btn-red flex-1 justify-center text-xs py-2.5"
               >
-                Записаться
+                {s("header","btn_book_mobile","Записаться на ремонт")}
               </button>
             </div>
           </nav>
