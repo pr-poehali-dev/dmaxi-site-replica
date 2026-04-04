@@ -61,11 +61,11 @@ function renderMarkdown(text: string) {
 export default function LegalPage({ type, onNavigate }: LegalPageProps) {
   const { s } = useSiteSettings();
 
-  const title   = s(type, "title",   type === "privacy" ? "Политика конфиденциальности" : "Пользовательское соглашение");
+  const title   = s(type, "title",   type === "privacy" ? "Политика конфиденциальности" : "Согласие на обработку персональных данных");
   const updated = s(type, "updated", "01 января 2024 г.");
   const content = s(type, "content", "");
 
-  const breadcrumb = type === "privacy" ? "Политика конфиденциальности" : "Пользовательское соглашение";
+  const breadcrumb = type === "privacy" ? "Политика конфиденциальности" : "Согласие на обработку персональных данных";
 
   return (
     <div className="animate-fade-in">
