@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
+const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
+
 // Страница онлайн-записи на ремонт (Booking)
 const timeSlots = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
@@ -24,10 +26,37 @@ export default function CartPage({ onNavigate }: BookingPageProps) {
     service: "", car: "", name: "", phone: "", date: "", time: "", location: locations[0], comment: "",
   });
   const [done, setDone] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const handleNext = () => {
-    if (step < 3) setStep(step + 1);
-    else setDone(true);
+  const handleNext = async () => {
+    if (step < 3) {
+      setStep(step + 1);
+    } else {
+      setSending(true);
+      try {
+        await fetch(`${MAILER_URL}?action=notify_admin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject: `Запись на ремонт — ${form.name} (${form.phone})`,
+            rows: [
+              { label: "Клиент", value: form.name },
+              { label: "Телефон", value: form.phone },
+              { label: "Услуга", value: form.service },
+              { label: "Автомобиль", value: form.car },
+              { label: "Дата и время", value: `${form.date} в ${form.time}` },
+              { label: "СТО", value: form.location },
+              { label: "Комментарий", value: form.comment || "—" },
+            ],
+          }),
+        });
+      } catch {
+        // не блокируем UI при ошибке сети
+      } finally {
+        setSending(false);
+        setDone(true);
+      }
+    }
   };
 
   return (
@@ -253,8 +282,8 @@ export default function CartPage({ onNavigate }: BookingPageProps) {
                 ) : (
                   <div />
                 )}
-                <button onClick={handleNext} className="btn-red">
-                  {step === 3 ? "Записаться" : "Далее →"}
+                <button onClick={handleNext} disabled={sending} className="btn-red disabled:opacity-60 flex items-center gap-2">
+                  {sending ? <><Icon name="Loader2" size={14} className="animate-spin" />Отправляю...</> : step === 3 ? "Записаться" : "Далее →"}
                 </button>
               </div>
             </div>

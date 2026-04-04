@@ -2,11 +2,43 @@ import json
 import os
 import uuid
 import base64
+import smtplib
+import ssl
 import urllib.request
 import urllib.error
 import urllib.parse
 import psycopg2
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+ADMIN_EMAIL = "ddmaxi-srs@yandex.ru"
+
+def send_admin_email(subject: str, html_body: str):
+    host     = os.environ.get("SMTP_HOST", "smtp.yandex.ru")
+    port     = int(os.environ.get("SMTP_PORT", "465"))
+    user     = os.environ.get("SMTP_USER", "")
+    password = os.environ.get("SMTP_PASSWORD", "")
+    if not user or not password:
+        return
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"DD MAXI <{user}>"
+    msg["To"]      = ADMIN_EMAIL
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        context = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+                smtp.login(user, password)
+                smtp.sendmail(user, ADMIN_EMAIL, msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.ehlo(); smtp.starttls(context=context); smtp.ehlo()
+                smtp.login(user, password)
+                smtp.sendmail(user, ADMIN_EMAIL, msg.as_string())
+    except Exception:
+        pass
 
 SCHEMA       = "t_p90995829_dmaxi_site_replica"
 PRODUCTS_URL = "https://functions.poehali.dev/4d2b5055-dabb-4c6e-aa52-48d8657f7596"
@@ -223,6 +255,12 @@ def handler(event: dict, context) -> dict:
                  f"Вы купили «{title}» за {price:,.0f} ₽. Остаток на кошельке: {new_balance:,.0f} ₽. Заказ #{order_id}")
             )
             db.commit()
+            send_admin_email(
+                f"Покупка в магазине {price:,.0f} ₽ — {user_name}",
+                f"""<p>Клиент <b>{user_name}</b> купил товар с кошелька:</p>
+                <p><b>{title}</b> — <b style='color:#cc1a1a'>{price:,.0f} ₽</b></p>
+                <p>Заказ #{order_id} · Остаток на кошельке: {new_balance:,.0f} ₽</p>"""
+            )
 
             return resp(200, {
                 "ok": True, "order_id": order_id, "product": title,

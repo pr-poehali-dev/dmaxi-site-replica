@@ -4,12 +4,44 @@ import uuid
 import base64
 import csv
 import io
+import smtplib
+import ssl
 import psycopg2
 import urllib.request
 import urllib.error
 from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 SCHEMA = "t_p90995829_dmaxi_site_replica"
+ADMIN_EMAIL = "ddmaxi-srs@yandex.ru"
+
+def send_admin_email(subject: str, html_body: str):
+    """Отправка уведомления на почту администратора."""
+    host     = os.environ.get("SMTP_HOST", "smtp.yandex.ru")
+    port     = int(os.environ.get("SMTP_PORT", "465"))
+    user     = os.environ.get("SMTP_USER", "")
+    password = os.environ.get("SMTP_PASSWORD", "")
+    if not user or not password:
+        return
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"DD MAXI <{user}>"
+    msg["To"]      = ADMIN_EMAIL
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    try:
+        context = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as smtp:
+                smtp.login(user, password)
+                smtp.sendmail(user, ADMIN_EMAIL, msg.as_string())
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as smtp:
+                smtp.ehlo(); smtp.starttls(context=context); smtp.ehlo()
+                smtp.login(user, password)
+                smtp.sendmail(user, ADMIN_EMAIL, msg.as_string())
+    except Exception:
+        pass  # не блокируем основной флоу
 MIN_TOPUP = 100    # минимальная сумма пополнения
 MAX_TOPUP = 500000 # максимальная сумма пополнения
 
@@ -163,6 +195,17 @@ def handler(event: dict, context) -> dict:
                                  f"Покупка «{stitle}» за {sprice:,.0f} ₽ оплачена картой. Заказ #{sorder_id}")
                             )
                             db.commit()
+                            # Email администратору
+                            cur.execute(f"SELECT name, phone FROM {SCHEMA}.users WHERE id = %s", (suser_id,))
+                            urow = cur.fetchone()
+                            uname_s = urow[0] if urow else f"ID {suser_id}"
+                            uphone_s = urow[1] if urow else "—"
+                            send_admin_email(
+                                f"Покупка в магазине {sprice:,.0f} ₽ — {uname_s}",
+                                f"""<p>Клиент <b>{uname_s}</b> ({uphone_s}) купил товар картой:</p>
+                                <p><b>{stitle}</b> — <b style='color:#cc1a1a'>{sprice:,.0f} ₽</b></p>
+                                <p>Заказ #{sorder_id}</p>"""
+                            )
 
                     elif shop_order_id and yk_status in ("canceled", "cancelled"):
                         cur.execute(
@@ -189,6 +232,17 @@ def handler(event: dict, context) -> dict:
                              f"{label} на сумму {amount_val:,.0f} ₽. Спасибо!")
                         )
                         db.commit()
+                        # Email администратору
+                        cur.execute(f"SELECT name, phone FROM {SCHEMA}.users WHERE id = %s", (int(user_id_meta),))
+                        urow = cur.fetchone()
+                        uname_sv = urow[0] if urow else f"ID {user_id_meta}"
+                        uphone_sv = urow[1] if urow else "—"
+                        pay_label = "Автотовар" if pay_type == "goods" else "Услуга"
+                        send_admin_email(
+                            f"{pay_label} оплачен(а) {amount_val:,.0f} ₽ — {uname_sv}",
+                            f"""<p>Клиент <b>{uname_sv}</b> ({uphone_sv}) оплатил(а) {pay_label.lower()} картой:</p>
+                            <p>Сумма: <b style='color:#cc1a1a'>{amount_val:,.0f} ₽</b><br>Заказ #{service_order_id}</p>"""
+                        )
 
                 # ── Пополнение кошелька (topup, дефолт) ─────────────────
                 else:
@@ -221,6 +275,16 @@ def handler(event: dict, context) -> dict:
                                  f"На ваш кошелёк зачислено {amount:,.0f} ₽. Текущий баланс: {new_balance:,.0f} ₽")
                             )
                             db.commit()
+                            # Email администратору
+                            cur.execute(f"SELECT name, phone FROM {SCHEMA}.users WHERE id = %s", (user_id,))
+                            urow = cur.fetchone()
+                            uname_t = urow[0] if urow else f"ID {user_id}"
+                            uphone_t = urow[1] if urow else "—"
+                            send_admin_email(
+                                f"Пополнение кошелька {amount:,.0f} ₽ — {uname_t}",
+                                f"""<p>Клиент <b>{uname_t}</b> ({uphone_t}) пополнил кошелёк на <b style='color:#cc1a1a'>{amount:,.0f} ₽</b>.</p>
+                                <p>Текущий баланс: {new_balance:,.0f} ₽<br>Payment ID: {yk_id}</p>"""
+                            )
 
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True})}
 

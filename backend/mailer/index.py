@@ -215,6 +215,27 @@ def handler(event: dict, context) -> dict:
             db.commit()
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True, "total_users": len(users), "emails_sent": sent_count, "emails_failed": fail_count})}
 
+        # POST notify_admin — публичный эндпоинт для заявок с сайта (форма записи, контакты)
+        if method == "POST" and action == "notify_admin":
+            admin_email = "ddmaxi-srs@yandex.ru"
+            subject  = body.get("subject", "Новая заявка с сайта DD MAXI")
+            rows     = body.get("rows", [])   # список {"label": "...", "value": "..."}
+            if not rows:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "rows обязателен"})}
+            rows_html = "".join(
+                f"<tr><td style='padding:10px;border:1px solid #333;color:#aaa;background:#222;width:40%'>{r.get('label','')}</td>"
+                f"<td style='padding:10px;border:1px solid #333;color:#fff;background:#1a1a1a'>{r.get('value','—')}</td></tr>"
+                for r in rows
+            )
+            html = make_html(
+                subject,
+                f"""<p style='color:#ccc;margin-bottom:16px'>Поступила новая заявка с сайта:</p>
+                <table style='width:100%;border-collapse:collapse;margin-bottom:20px'>{rows_html}</table>
+                <p style='color:#888;font-size:12px'>Письмо сгенерировано автоматически</p>"""
+            )
+            ok, err = send_email(admin_email, subject, html)
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": ok, "error": err if not ok else None})}
+
         return {"statusCode": 404, "headers": cors_headers(), "body": json.dumps({"error": "Not found"})}
 
     finally:
