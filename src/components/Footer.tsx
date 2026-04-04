@@ -14,12 +14,20 @@ export default function Footer({ onNavigate }: FooterProps) {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 bg-primary flex items-center justify-center">
-                <span className="text-white font-display font-black text-lg">DD</span>
-              </div>
+              {s("footer", "logo_url") || s("general", "logo_url") ? (
+                <img
+                  src={s("footer","logo_url") || s("general","logo_url")}
+                  alt={s("general","company_name","DD MAXI")}
+                  className="h-10 w-auto object-contain"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-primary flex items-center justify-center">
+                  <span className="text-white font-display font-black text-lg">DD</span>
+                </div>
+              )}
               <div>
-                <div className="font-display font-bold text-xl tracking-widest">MAXI</div>
-                <div className="label-tag text-[9px]">автосервис</div>
+                <div className="font-display font-bold text-xl tracking-widest">{s("general","company_name","DD MAXI")}</div>
+                <div className="label-tag text-[9px]">{s("footer","logo_tagline") || s("general","tagline","автосервис")}</div>
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-5">
