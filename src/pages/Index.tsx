@@ -17,6 +17,7 @@ import ShopPage from "@/pages/ShopPage";             // Магазин
 import AutoGoodsPage from "@/pages/AutoGoodsPage";   // Автотовары
 import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
 import ReceiptsPage from "@/pages/ReceiptsPage";     // Хранилище чеков
+import ClubCardPage from "@/pages/ClubCardPage";     // Публичная клубная карта
 import SiteEditorPage from "@/pages/SiteEditorPage"; // Редактор сайта
 import LegalPage from "@/pages/LegalPage";           // Политика / Соглашение
 import PreviewPage from "@/pages/PreviewPage";       // Предпросмотр сайта
@@ -45,6 +46,13 @@ export default function Index() {
     checkedRef.current = true;
 
     const params  = new URLSearchParams(window.location.search);
+
+    // Обработка QR-карты — НЕ чистим URL, страница сама его считает
+    if (params.get("card")) {
+      setCurrentPage("club_card");
+      return;
+    }
+
     const payment = params.get("payment");
     const type    = params.get("type") || "default";
 
@@ -154,6 +162,7 @@ export default function Index() {
       case "admin":           return <AdminPage onNavigate={navigate} />;
       case "receipts":        return <ReceiptsPage onNavigate={navigate} />;
       case "receipts_admin":  return <ReceiptsPage onNavigate={navigate} isAdmin />;
+      case "club_card":       return <ClubCardPage token={localStorage.getItem("ddmaxi_token") || ""} onNavigate={navigate} />;
       case "site_editor":     return <SiteEditorPage onNavigate={navigate} />;
       case "preview":         return <PreviewPage onNavigate={navigate} />;
       case "privacy":         return <LegalPage type="privacy" onNavigate={navigate} />;

@@ -180,6 +180,21 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [myTopupLoading, setMyTopupLoading] = useState(false);
   const [myTopupMsg, setMyTopupMsg] = useState("");
 
+  /* qr scanner state */
+  const [scannerOpen,   setScannerOpen]   = useState(false);
+  const [scanResult,    setScanResult]    = useState<null|{id:number;name:string;phone:string;club_level:string;club_level_label:string;bonus_points:number;club_card_number:string;car_model?:string;wallet_balance:number;discount_percent:number;qr_token?:string}>(null);
+  const [scanLoading,   setScanLoading]   = useState(false);
+  const [scanError,     setScanError]     = useState("");
+  const [scanPayAmt,    setScanPayAmt]    = useState("");
+  const [scanService,   setScanService]   = useState("Услуга автосервиса");
+  const [scanPayMethod, setScanPayMethod] = useState<"cash"|"wallet">("cash");
+  const [scanOpResult,  setScanOpResult]  = useState("");
+  const [scanOpLoading, setScanOpLoading] = useState(false);
+  const [manualQr,      setManualQr]      = useState("");
+  const videoRef   = useRef<HTMLVideoElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const scanTimerRef = useRef<ReturnType<typeof setInterval>|null>(null);
+
   /* club cards state */
   interface ClubCardUser {
     id: number; name: string; phone: string; email?: string;
@@ -281,6 +296,95 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       if (r.ok) { setCcAssignMsg(`Готово! Присвоено карт: ${d.assigned}`); loadCcUsers(ccSearch); }
       else setCcAssignMsg(d.error || "Ошибка");
     } finally { setCcAssigning(false); }
+  };
+
+  const lookupQrToken = async (rawToken: string) => {
+    setScanLoading(true); setScanError(""); setScanResult(null); setScanOpResult("");
+    try {
+      const r = await fetch(`${CLUB_CARDS_URL}?action=scan_qr`, {
+        method: "POST", headers: H(),
+        body: JSON.stringify({ qr_token: rawToken }),
+      });
+      const d = await r.json();
+      if (r.ok) setScanResult({ ...d, qr_token: rawToken });
+      else setScanError(d.error || "Карта не найдена");
+    } finally { setScanLoading(false); }
+  };
+
+  const startCamera = async () => {
+    setScannerOpen(true); setScanResult(null); setScanError(""); setManualQr("");
+    await new Promise(res => setTimeout(res, 100));
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+      // Запускаем сканирование каждые 300мс
+      const jsQR = (await import("jsqr")).default;
+      scanTimerRef.current = setInterval(() => {
+        const video  = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(video, 0, 0);
+        const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height);
+        if (code?.data) {
+          stopCamera();
+          // Извлекаем токен из URL вида /?card=TOKEN или просто токен
+          const match = code.data.match(/[?&]card=([^&]+)/);
+          const tok   = match ? decodeURIComponent(match[1]) : code.data;
+          lookupQrToken(tok);
+        }
+      }, 300);
+    } catch {
+      setScanError("Нет доступа к камере. Введите QR-токен вручную.");
+      setScannerOpen(true);
+    }
+  };
+
+  const stopCamera = () => {
+    if (scanTimerRef.current) { clearInterval(scanTimerRef.current); scanTimerRef.current = null; }
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+    setScannerOpen(false);
+  };
+
+  const doOperation = async (opAction: string) => {
+    if (!scanResult?.qr_token) return;
+    const amount = parseFloat(scanPayAmt);
+    if (isNaN(amount) || amount <= 0) { setScanOpResult("Введите корректную сумму"); return; }
+    setScanOpLoading(true); setScanOpResult("");
+    try {
+      const r = await fetch(`${CLUB_CARDS_URL}?action=${opAction}`, {
+        method: "POST", headers: H(),
+        body: JSON.stringify({
+          qr_token: scanResult.qr_token,
+          amount, service: scanService,
+          pay_method: opAction === "confirm_visit" ? scanPayMethod : undefined,
+          description: scanService,
+        }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        const msgs: Record<string,string> = {
+          wallet_pay:    `✓ Списано ${d.paid?.toLocaleString()} ₽. Остаток: ${d.new_balance?.toLocaleString()} ₽`,
+          confirm_visit: `✓ Визит #${d.visit_number} подтверждён. Начислено ${d.bonus_earned} бонусов.`,
+          apply_discount:`✓ Скидка ${d.discount_percent}%: ${d.original_amount?.toLocaleString()} → ${d.final_amount?.toLocaleString()} ₽`,
+        };
+        setScanOpResult(msgs[opAction] || "Готово");
+        // Обновляем данные карты
+        await lookupQrToken(scanResult.qr_token);
+      } else {
+        setScanOpResult(d.error || "Ошибка");
+      }
+    } finally { setScanOpLoading(false); }
   };
 
   const loadUserDetail = useCallback(async (id: number) => {
@@ -1038,6 +1142,123 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   </div>
                 </div>
                 {ccAssignMsg && <div className={`text-xs px-3 py-2 rounded border ${ccAssignMsg.startsWith("Готово")?"border-green-500/30 bg-green-500/10 text-green-400":"border-destructive/30 bg-destructive/10 text-destructive"}`}>{ccAssignMsg}</div>}
+
+                {/* ── СКАНЕР QR ── */}
+                <div className="card-dark p-5 border border-primary/20">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <div className="label-tag text-primary">Сканер клубных карт</div>
+                    <button
+                      onClick={scannerOpen ? stopCamera : startCamera}
+                      className={`btn-ghost text-xs py-2 px-4 ${scannerOpen ? "text-destructive border-destructive/30" : "text-primary border-primary/30"}`}
+                    >
+                      <Icon name={scannerOpen ? "CameraOff" : "Camera"} size={14}/>
+                      {scannerOpen ? "Остановить" : "Включить камеру"}
+                    </button>
+                  </div>
+
+                  {/* Видео */}
+                  {scannerOpen && (
+                    <div className="relative mb-4 rounded overflow-hidden bg-black" style={{maxWidth:400,aspectRatio:"4/3"}}>
+                      <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
+                      <canvas ref={canvasRef} className="hidden" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-48 h-48 border-2 border-primary rounded-lg opacity-70" />
+                      </div>
+                      <div className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/70">
+                        Наведите камеру на QR-код клиента
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ручной ввод */}
+                  <div className="flex gap-2 mb-4">
+                    <input
+                      type="text" value={manualQr}
+                      onChange={e => setManualQr(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && manualQr && lookupQrToken(manualQr)}
+                      placeholder="Или введите токен карты вручную..."
+                      className="input-dark flex-1 text-xs py-2"
+                    />
+                    <button
+                      onClick={() => manualQr && lookupQrToken(manualQr)}
+                      disabled={!manualQr || scanLoading}
+                      className="btn-ghost text-xs py-2 px-3 disabled:opacity-60"
+                    >
+                      {scanLoading ? <Icon name="Loader2" size={13} className="animate-spin"/> : <Icon name="Search" size={13}/>}
+                    </button>
+                  </div>
+
+                  {scanError && <div className="text-xs text-destructive px-3 py-2 bg-destructive/10 border border-destructive/20 rounded mb-3">{scanError}</div>}
+
+                  {/* Результат сканирования */}
+                  {scanResult && (
+                    <div className="space-y-4">
+                      {/* Карточка клиента */}
+                      <div className="bg-secondary/20 rounded-xl p-4 border border-border">
+                        <div className="flex items-start gap-4 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-display font-bold text-base uppercase">{scanResult.name}</div>
+                            <div className="flex gap-2 mt-1 flex-wrap">
+                              <span className="label-tag text-primary">{scanResult.club_card_number}</span>
+                              <span className="label-tag">{scanResult.phone}</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded ${scanResult.club_level==="gold"?"bg-yellow-500/20 text-yellow-400":scanResult.club_level==="silver"?"bg-gray-400/20 text-gray-300":scanResult.club_level==="platinum"?"bg-purple-500/20 text-purple-400":"bg-amber-700/20 text-amber-400"}`}>
+                                {scanResult.club_level_label}
+                              </span>
+                            </div>
+                            {scanResult.car_model && <div className="label-tag mt-1">Авто: {scanResult.car_model}</div>}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-green-400 font-bold text-lg">{scanResult.wallet_balance.toLocaleString("ru-RU")} ₽</div>
+                            <div className="label-tag">кошелёк</div>
+                            <div className="text-primary font-bold">{scanResult.bonus_points.toLocaleString()} бал.</div>
+                            <div className="label-tag">скидка {scanResult.discount_percent}%</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Панель операций */}
+                      <div className="space-y-3">
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="label-tag mb-1.5 block">Услуга / комментарий</label>
+                            <input type="text" value={scanService} onChange={e=>setScanService(e.target.value)} className="input-dark text-sm" />
+                          </div>
+                          <div>
+                            <label className="label-tag mb-1.5 block">Сумма, ₽</label>
+                            <input type="number" min="1" value={scanPayAmt} onChange={e=>setScanPayAmt(e.target.value)} className="input-dark text-sm" placeholder="Например: 3500" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="label-tag mb-1.5 block">Способ оплаты визита</label>
+                          <div className="flex gap-2">
+                            <button onClick={()=>setScanPayMethod("cash")} className={`flex-1 py-2 text-xs font-display font-bold uppercase border transition-colors ${scanPayMethod==="cash"?"border-primary bg-primary/10 text-primary":"border-border text-muted-foreground hover:border-primary/40"}`}>
+                              Наличные / карта
+                            </button>
+                            <button onClick={()=>setScanPayMethod("wallet")} className={`flex-1 py-2 text-xs font-display font-bold uppercase border transition-colors ${scanPayMethod==="wallet"?"border-green-500 bg-green-500/10 text-green-400":"border-border text-muted-foreground hover:border-green-500/40"}`}>
+                              Кошелёк ({scanResult.wallet_balance.toLocaleString()} ₽)
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button onClick={()=>doOperation("apply_discount")} disabled={scanOpLoading||!scanPayAmt} className="btn-ghost text-xs py-2 disabled:opacity-60">
+                            <Icon name="Tag" size={13}/>Скидка
+                          </button>
+                          <button onClick={()=>doOperation("wallet_pay")} disabled={scanOpLoading||!scanPayAmt} className="btn-ghost text-xs py-2 disabled:opacity-60 text-green-400 border-green-500/30 hover:bg-green-500/10">
+                            <Icon name="Wallet" size={13}/>Кошелёк
+                          </button>
+                          <button onClick={()=>doOperation("confirm_visit")} disabled={scanOpLoading||!scanPayAmt} className="btn-red text-xs py-2 disabled:opacity-60">
+                            {scanOpLoading ? <><Icon name="Loader2" size={13} className="animate-spin"/>...</> : <><Icon name="CheckCircle" size={13}/>Визит</>}
+                          </button>
+                        </div>
+                        {scanOpResult && (
+                          <div className={`text-xs px-3 py-2 rounded border ${scanOpResult.startsWith("✓")?"border-green-500/30 bg-green-500/10 text-green-400":"border-destructive/30 bg-destructive/10 text-destructive"}`}>
+                            {scanOpResult}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* ── КОНСТРУКТОР КАРТЫ ── */}
                 <div className="card-dark p-5">

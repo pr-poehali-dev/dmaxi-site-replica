@@ -730,7 +730,65 @@ ${photos.length > 0 ? `<div class="dashed"></div><div class="section-title">Фо
             {/* БОНУСЫ */}
             {activeTab === "bonus" && (
               <div>
-                <div className="label-tag mb-5">Бонусный счёт</div>
+                <div className="label-tag mb-5">Бонусный счёт и клубная карта</div>
+
+                {/* QR-карта */}
+                {(() => {
+                  const qrToken = (user as unknown as Record<string,string>).qr_token;
+                  const cardNum = (user as unknown as Record<string,string>).club_card_number;
+                  const qrData  = `${window.location.origin}/?card=${qrToken}`;
+                  const qrImg   = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}&bgcolor=ffffff&color=111111&margin=10`;
+                  return qrToken ? (
+                    <div className="card-dark p-6 mb-6 flex flex-col sm:flex-row items-center gap-6">
+                      <div className="shrink-0 flex flex-col items-center gap-2">
+                        <img src={qrImg} alt="QR-код" className="w-36 h-36 rounded border border-border bg-white p-1" />
+                        <div className="font-mono text-xs text-muted-foreground">{cardNum}</div>
+                      </div>
+                      <div className="flex-1 text-center sm:text-left">
+                        <div className="font-display font-bold text-lg uppercase tracking-wide mb-1">{user.name}</div>
+                        <div className="flex gap-2 flex-wrap mb-3 justify-center sm:justify-start">
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${level === "platinum" ? "bg-purple-500 text-white" : level === "gold" ? "bg-yellow-500 text-black" : level === "silver" ? "bg-gray-400 text-black" : "bg-amber-700 text-white"}`}>
+                            {LEVEL_LABELS[level]}
+                          </span>
+                          <span className="text-xs border border-border px-3 py-1 rounded-full">{LEVEL_DISCOUNT[level]}% скидка</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Покажите QR-код кассиру для получения скидки, оплаты кошельком или начисления бонусов</p>
+                        <button
+                          onClick={() => {
+                            const w = window.open("", "_blank", "width=400,height=500");
+                            if (!w) return;
+                            w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Карта ${cardNum}</title>
+<style>body{font-family:Arial;text-align:center;padding:24px;background:#fff;color:#111}
+.card{max-width:300px;margin:0 auto;border:2px solid #cc1a1a;border-radius:12px;padding:20px}
+.logo{font-size:22px;font-weight:900;letter-spacing:0.08em;color:#cc1a1a}
+.num{font-family:monospace;font-size:14px;margin:8px 0;color:#555}
+.name{font-size:16px;font-weight:700;margin:4px 0}
+.level{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;background:#cc1a1a;color:#fff;margin:6px 0}
+img{margin:12px auto;display:block}
+.hint{font-size:10px;color:#888;margin-top:8px}
+</style></head>
+<body>
+<div class="card">
+<div class="logo">DD MAXI SRS</div>
+<div class="num">${cardNum}</div>
+<div class="name">${user.name}</div>
+<div class="level">${LEVEL_LABELS[level]} · ${LEVEL_DISCOUNT[level]}%</div>
+<img src="${qrImg}" width="160" height="160"/>
+<div class="hint">Покажите QR-код при визите</div>
+</div>
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script>
+</body></html>`);
+                            w.document.close();
+                          }}
+                          className="btn-ghost text-xs py-1.5 px-3 mt-3"
+                        >
+                          <Icon name="Printer" size={13}/>Распечатать карту
+                        </button>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
                 <div className="grid sm:grid-cols-3 gap-4 mb-8">
                   {[
                     { val: user.bonus_points, label: "баллов на счёте", sub: "1 балл = 1 ₽" },
