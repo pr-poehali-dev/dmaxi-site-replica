@@ -562,7 +562,13 @@ def handler(event: dict, context) -> dict:
                 f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
                 (new_balance, wallet_id)
             )
-            add_transaction(cur, wallet_id, target_uid, adjust_type, txn_amount, new_balance, description, f"admin:{user_id}")
+            txn_id = add_transaction(cur, wallet_id, target_uid, adjust_type, txn_amount, new_balance, description, f"admin:{user_id}")
+
+            # Чек для пользователя
+            receipt_desc = description or ("Зачисление администратором" if direction == "credit" else "Списание администратором")
+            add_receipt(cur, target_uid, "admin_adjust", amount, receipt_desc,
+                        f"admin:{user_id}:{txn_id}",
+                        {"direction": direction, "admin_id": user_id, "balance_after": new_balance})
 
             # Уведомление пользователю
             if direction == "credit":
