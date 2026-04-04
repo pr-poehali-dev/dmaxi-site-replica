@@ -304,6 +304,105 @@ def handler(event: dict, context) -> dict:
                 "order_id": oid, "status": status, "amount": float(amount), "balance": balance
             })}
 
+        # POST ?action=spend — списание с кошелька пользователя (самостоятельная оплата)
+        if method == "POST" and action == "spend":
+            amount      = float(body.get("amount", 0))
+            description = body.get("description", "Оплата услуги").strip()
+
+            if amount <= 0:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Укажите сумму больше 0"})}
+
+            wallet_id, old_balance = ensure_wallet(cur, user_id)
+            if old_balance < amount:
+                shortage = amount - old_balance
+                return {"statusCode": 402, "headers": cors_headers(), "body": json.dumps({
+                    "error": f"Недостаточно средств. На кошельке {old_balance:,.0f} ₽, не хватает {shortage:,.0f} ₽",
+                    "balance": old_balance, "shortage": shortage
+                })}
+
+            new_balance = old_balance - amount
+            cur.execute(
+                f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
+                (new_balance, wallet_id)
+            )
+            txn_id = add_transaction(cur, wallet_id, user_id, "spend", -amount, new_balance, description)
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
+                (user_id, "Оплата с кошелька",
+                 f"Списано {amount:,.0f} ₽. {description}. Остаток: {new_balance:,.0f} ₽")
+            )
+            db.commit()
+
+            return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                "ok": True, "txn_id": txn_id,
+                "amount": amount, "balance_after": new_balance,
+                "message": f"Списано {amount:,.0f} ₽. Остаток: {new_balance:,.0f} ₽"
+            })}
+
+        # POST ?action=create_service_payment — оплата услуги/товара картой через ЮКасса (без зачисления на кошелёк)
+        if method == "POST" and action == "create_service_payment":
+            amount      = float(body.get("amount", 0))
+            description = body.get("description", "Оплата услуги DD MAXI")
+            return_url  = body.get("return_url", "https://ddmaxi.ru")
+
+            if amount <= 0:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": "Укажите сумму больше 0"})}
+            if amount > MAX_TOPUP:
+                return {"statusCode": 400, "headers": cors_headers(), "body": json.dumps({"error": f"Максимальная сумма: {MAX_TOPUP} ₽"})}
+
+            # Создаём запись с типом service_payment
+            cur.execute(
+                f"INSERT INTO {SCHEMA}.payment_orders (user_id, amount, status, description) "
+                f"VALUES (%s, %s, 'pending', %s) RETURNING id",
+                (user_id, amount, description)
+            )
+            order_id = cur.fetchone()[0]
+            db.commit()
+
+            try:
+                payment = yookassa_request("POST", "/payments", {
+                    "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
+                    "confirmation": {"type": "redirect", "return_url": return_url},
+                    "capture": True,
+                    "description": f"{description[:128]} — {user_name}",
+                    "metadata": {"service_order_id": str(order_id), "user_id": str(user_id), "type": "service"},
+                    "receipt": {
+                        "customer": {
+                            "full_name": user_name,
+                            **({"email": user_email} if user_email else {"phone": "79000000000"}),
+                        },
+                        "items": [{
+                            "description": description[:128],
+                            "quantity": "1.00",
+                            "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
+                            "vat_code": 1,
+                            "payment_mode": "full_payment",
+                            "payment_subject": "service",
+                        }]
+                    }
+                })
+
+                yk_id       = payment.get("id")
+                confirm_url = payment.get("confirmation", {}).get("confirmation_url", "")
+
+                cur.execute(
+                    f"UPDATE {SCHEMA}.payment_orders SET yookassa_id = %s, confirmation_url = %s, updated_at = NOW() WHERE id = %s",
+                    (yk_id, confirm_url, order_id)
+                )
+                db.commit()
+
+                return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({
+                    "ok": True, "order_id": order_id, "payment_id": yk_id,
+                    "confirmation_url": confirm_url, "amount": amount
+                })}
+
+            except Exception as e:
+                cur.execute(f"UPDATE {SCHEMA}.payment_orders SET status = 'canceled' WHERE id = %s", (order_id,))
+                db.commit()
+                return {"statusCode": 502, "headers": cors_headers(), "body": json.dumps({
+                    "error": f"Ошибка создания платежа: {str(e)}"
+                })}
+
         # GET ?action=history — полная история транзакций
         if method == "GET" and action == "history":
             limit  = min(int(params.get("limit", 50)), 200)

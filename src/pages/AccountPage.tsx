@@ -403,16 +403,19 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
 
                 {/* Форма пополнения */}
                 <div className="card-dark p-6 mb-5">
-                  <div className="font-display text-xs uppercase tracking-widest text-muted-foreground mb-4">Пополнить кошелёк</div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Icon name="CreditCard" size={16} className="text-primary" />
+                    <div className="font-display text-xs uppercase tracking-widest text-muted-foreground">Пополнить кошелёк картой</div>
+                  </div>
                   <div className="flex gap-2 flex-wrap mb-4">
                     {[500, 1000, 2000, 5000].map(a => (
                       <button key={a} onClick={()=>setTopupAmount(String(a))}
-                        className={`px-4 py-2 text-sm font-display font-bold border transition-colors ${topupAmount===String(a)?"border-green-500 bg-green-500/10 text-green-400":"border-border hover:border-green-500/50 text-muted-foreground hover:text-foreground"}`}>
+                        className={`px-4 py-2 text-sm font-display font-bold border transition-colors ${topupAmount===String(a)?"border-primary bg-primary/10 text-primary":"border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"}`}>
                         {a.toLocaleString("ru-RU")} ₽
                       </button>
                     ))}
                   </div>
-                  <div className="flex gap-3 flex-wrap items-end">
+                  <div className="flex gap-3 flex-wrap items-end mb-4">
                     <div className="flex-1 min-w-[160px]">
                       <label className="label-tag mb-1.5 block">Другая сумма (от 100 до 500 000 ₽)</label>
                       <div className="relative">
@@ -438,17 +441,21 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                           const d = await r.json();
                           if (r.ok && d.confirmation_url) {
                             setPendingOrderId(d.order_id);
-                            window.open(d.confirmation_url, "_blank");
-                            setTopupMsg(`Платёж создан на сумму ${Number(topupAmount).toLocaleString("ru-RU")} ₽. После оплаты средства зачислятся автоматически.`);
+                            window.location.href = d.confirmation_url;
                           } else {
                             setTopupMsg(d.error || "Ошибка создания платежа");
                           }
                         } finally { setTopupLoading(false); }
                       }}
-                      className="btn-green disabled:opacity-60 py-3 px-6 whitespace-nowrap">
-                      {topupLoading ? <><Icon name="Loader2" size={15} className="animate-spin"/>Создаём...</> : <><Icon name="CreditCard" size={15}/>Оплатить картой</>}
+                      className="btn-red disabled:opacity-60 py-3 px-6 whitespace-nowrap">
+                      {topupLoading
+                        ? <><Icon name="Loader2" size={15} className="animate-spin"/>Создаём...</>
+                        : <><Icon name="CreditCard" size={15}/>Пополнить {topupAmount ? `${Number(topupAmount).toLocaleString("ru-RU")} ₽` : ""} картой</>}
                     </button>
                   </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Icon name="Lock" size={11} />Безопасная оплата через ЮКасса · Visa, МИР, МастерКард
+                  </p>
                   {topupMsg && (
                     <div className={`mt-3 text-xs px-3 py-2 rounded border ${topupMsg.includes("ошибка")||topupMsg.includes("Ошибка")?"border-destructive/30 bg-destructive/10 text-destructive":"border-green-500/30 bg-green-500/10 text-green-400"}`}>
                       {topupMsg}
@@ -466,7 +473,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                             const d = await r.json();
                             if (d.status === "succeeded") {
                               setWalletBalance(d.balance);
-                              setTopupMsg(`Оплата подтверждена! Баланс: ${d.balance.toLocaleString("ru-RU")} ₽`);
+                              setTopupMsg(`✓ Оплата подтверждена! Баланс: ${d.balance.toLocaleString("ru-RU")} ₽`);
                               setPendingOrderId(null);
                               loadWallet();
                             } else if (d.status === "canceled") {
