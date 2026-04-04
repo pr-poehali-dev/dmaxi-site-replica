@@ -120,26 +120,42 @@ export default function ContactsPage({ onNavigate }: ContactsPageProps) {
             </div>
           </div>
 
-          {/* Map placeholder + Form */}
+          {/* Map + Form */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Map placeholder */}
-            <div className="aspect-[16/9] bg-secondary border border-border flex items-center justify-center relative overflow-hidden">
-              <div className="stripe-bg absolute inset-0 opacity-50" />
-              <div className="relative text-center">
-                <Icon name="MapPin" size={36} className="text-primary mx-auto mb-3" />
-                <div className="font-display font-bold text-sm uppercase tracking-wide mb-1">
-                  {locations[activeLocation].address}
-                </div>
-                <div className="text-xs text-muted-foreground">{locations[activeLocation].hours}</div>
-                <a
-                  href={`https://yandex.ru/maps/?text=${encodeURIComponent(locations[activeLocation].address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-4 text-xs text-primary font-display font-semibold uppercase tracking-wide hover:underline"
-                >
-                  Открыть в Яндекс Картах →
-                </a>
-              </div>
+            {/* Map */}
+            <div className="aspect-[16/9] bg-secondary border border-border relative overflow-hidden">
+              {s("contacts", "map_embed", "") ? (
+                <iframe
+                  src={s("contacts", "map_embed", "")}
+                  width="100%"
+                  height="100%"
+                  className="absolute inset-0 w-full h-full border-0"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                <>
+                  <div className="stripe-bg absolute inset-0 opacity-50" />
+                  <div className="relative flex items-center justify-center h-full text-center">
+                    <div>
+                      <Icon name="MapPin" size={36} className="text-primary mx-auto mb-3" />
+                      <div className="font-display font-bold text-sm uppercase tracking-wide mb-1">
+                        {locations[activeLocation].address}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{locations[activeLocation].hours}</div>
+                      <a
+                        href={`https://yandex.ru/maps/?text=${encodeURIComponent(locations[activeLocation].address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 mt-4 text-xs text-primary font-display font-semibold uppercase tracking-wide hover:underline"
+                      >
+                        Открыть в Яндекс Картах →
+                      </a>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Contact form */}
