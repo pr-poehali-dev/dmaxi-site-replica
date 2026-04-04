@@ -432,7 +432,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                       onClick={async () => {
                         setTopupLoading(true); setTopupMsg("");
                         try {
-                          const returnUrl = window.location.href;
+                          const returnUrl = window.location.origin + "/?payment=success&type=topup";
                           const r = await fetch(`${WALLET_URL}?action=create_payment`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json", "X-Auth-Token": token || "" },

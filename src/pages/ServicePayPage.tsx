@@ -124,7 +124,7 @@ export default function ServicePayPage({ onNavigate }: ServicePayPageProps) {
       const r = await fetch(`${WALLET_URL}?action=create_service_payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Auth-Token": token },
-        body: JSON.stringify({ amount: amountToPay, description: desc, return_url: window.location.href })
+        body: JSON.stringify({ amount: amountToPay, description: desc, return_url: window.location.origin + "/?payment=success&type=service" })
       });
       const d = await r.json();
       if (r.ok && d.confirmation_url) {
@@ -150,7 +150,7 @@ export default function ServicePayPage({ onNavigate }: ServicePayPageProps) {
         const r = await fetch(`${WALLET_URL}?action=create_service_payment`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-Auth-Token": token },
-          body: JSON.stringify({ amount, description: `Оплата услуги автосервиса${note ? `: ${note}` : ""}`, return_url: window.location.href })
+          body: JSON.stringify({ amount, description: `Оплата услуги автосервиса${note ? `: ${note}` : ""}`, return_url: window.location.origin + "/?payment=success&type=service" })
         });
         const d = await r.json();
         if (r.ok && d.confirmation_url) { window.location.href = d.confirmation_url; return; }

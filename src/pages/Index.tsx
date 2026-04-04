@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import HomePage from "@/pages/HomePage";
@@ -16,8 +17,53 @@ import ShopPage from "@/pages/ShopPage";             // Магазин
 import AutoGoodsPage from "@/pages/AutoGoodsPage";   // Автотовары
 import ServicePayPage from "@/pages/ServicePayPage"; // Оплата услуг
 
+const PAYMENT_MESSAGES: Record<string, { title: string; description: string }> = {
+  topup:   { title: "Кошелёк пополнен!",         description: "Средства зачислены на ваш кошелёк." },
+  shop:    { title: "Оплата прошла успешно!",     description: "Ваш заказ в магазине оформлен." },
+  service: { title: "Оплата прошла успешно!",     description: "Услуга оплачена. Спасибо!" },
+  goods:   { title: "Оплата прошла успешно!",     description: "Товар заказан. Менеджер свяжется с вами." },
+  default: { title: "Оплата прошла успешно!",     description: "Платёж принят. Спасибо!" },
+};
+
 export default function Index() {
   const [currentPage, setCurrentPage] = useState("home");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const type    = params.get("type") || "default";
+
+    if (payment === "success") {
+      const msg = PAYMENT_MESSAGES[type] || PAYMENT_MESSAGES.default;
+      setTimeout(() => {
+        toast.success(msg.title, {
+          description: msg.description,
+          duration: 6000,
+        });
+      }, 500);
+
+      // Очищаем URL без перезагрузки
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+
+      // Перенаправляем в нужный раздел
+      if (type === "topup") setCurrentPage("account");
+      if (type === "shop")  setCurrentPage("shop");
+      if (type === "goods") setCurrentPage("autogoods");
+      if (type === "service") setCurrentPage("servicepay");
+    }
+
+    if (payment === "cancel") {
+      setTimeout(() => {
+        toast.error("Оплата отменена", {
+          description: "Платёж не был завершён. Попробуйте ещё раз.",
+          duration: 5000,
+        });
+      }, 500);
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    }
+  }, []);
 
   const navigate = (page: string) => {
     setCurrentPage(page);

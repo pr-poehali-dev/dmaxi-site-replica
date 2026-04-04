@@ -101,7 +101,7 @@ export default function ShopPage({ onNavigate }: ShopPageProps) {
     if (!selected) return;
     setProcessing(true); setMsg("");
     try {
-      const returnUrl = window.location.href;
+      const returnUrl = window.location.origin + "/?payment=success&type=shop";
       const r = await fetch(`${SHOP_URL}?action=buy_card`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Auth-Token": token },

@@ -118,7 +118,7 @@ export default function AutoGoodsPage({ onNavigate }: AutoGoodsPageProps) {
         body: JSON.stringify({
           amount: selected.price,
           description: `Автотовар: ${selected.name} ${selected.brand} (${selected.unit})`,
-          return_url: window.location.href,
+          return_url: window.location.origin + "/?payment=success&type=goods",
         })
       });
       const d = await r.json();
