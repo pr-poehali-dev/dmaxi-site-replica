@@ -1,0 +1,12 @@
+{
+  "tests": [
+    {
+      "name": "Список активных комплексов",
+      "method": "GET",
+      "path": "/?action=list",
+      "expectedStatus": 200,
+      "expectedBody": {"packages": [{"id": 1, "title": "ТО Стандарт"}]},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

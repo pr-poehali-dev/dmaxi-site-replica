@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/ui/icon";
 import { useAuth, User } from "@/context/AuthContext";
 
-const ADMIN_URL  = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
-const MAILER_URL = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
-const AUTH_URL   = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
-const CHAT_URL   = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
-const WALLET_URL = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
-const SHOP_URL   = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
+const ADMIN_URL    = "https://functions.poehali.dev/6e67d0ba-38ba-488e-8380-36b54668214b";
+const MAILER_URL   = "https://functions.poehali.dev/093c15a5-d14e-4c9e-8c01-38296645286f";
+const AUTH_URL     = "https://functions.poehali.dev/3e75355e-bbd8-4e2b-b8cd-aa607ff82304";
+const CHAT_URL     = "https://functions.poehali.dev/62695b16-64b3-4804-820c-c7db5baf86a8";
+const WALLET_URL   = "https://functions.poehali.dev/686b24a0-6c64-41f9-8ff3-a7a49d17304b";
+const SHOP_URL     = "https://functions.poehali.dev/714bb75b-cfea-4178-a588-3dcaf54e74cc";
+const PACKAGES_URL = "https://functions.poehali.dev/4751dd0c-bf65-4377-a597-d9d580f4308d";
 
 /* ── interfaces ── */
 interface AdminUser {
@@ -47,6 +48,7 @@ const MANAGE_TABS = [
   { id: "user_mgmt",  label: "Управление",        icon: "UserCog" },
   { id: "wallets",    label: "Кошельки",          icon: "Wallet" },
   { id: "shop_orders", label: "Заказы магазина",  icon: "ShoppingBag" },
+  { id: "packages",   label: "Комплексы",         icon: "Package" },
   { id: "visits",     label: "Визиты",            icon: "CalendarCheck" },
   { id: "add_visit",  label: "Добавить визит",    icon: "Plus" },
   { id: "mailing",    label: "Рассылка",          icon: "Send" },
@@ -96,6 +98,60 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [ghostLoading, setGhostLoading] = useState<number | null>(null);
   const [ghostUser, setGhostUser] = useState<User | null>(null);
   const [ghostToken, setGhostToken] = useState<string | null>(null);
+
+  /* packages admin state */
+  interface AdminPackage { id:number; title:string; description:string; items:string[]; price:number; duration:string; category:string; is_active:boolean; sort_order:number; }
+  const [pkgList,    setPkgList]    = useState<AdminPackage[]>([]);
+  const [pkgLoading, setPkgLoading] = useState(false);
+  const [pkgEdit,    setPkgEdit]    = useState<AdminPackage | null>(null);
+  const [pkgForm,    setPkgForm]    = useState({ title:"", description:"", items:"", price:"", duration:"", category:"", sort_order:"0", is_active:true });
+  const [pkgSaving,  setPkgSaving]  = useState(false);
+  const [pkgMsg,     setPkgMsg]     = useState("");
+  const [pkgShowNew, setPkgShowNew] = useState(false);
+
+  const loadPackages = useCallback(async () => {
+    if (!token) return;
+    setPkgLoading(true);
+    try {
+      const r = await fetch(`${PACKAGES_URL}?action=all`, { headers: { "X-Auth-Token": token } });
+      const d = await r.json();
+      setPkgList(d.packages || []);
+    } finally { setPkgLoading(false); }
+  }, [token]);
+
+  const savePkg = async () => {
+    if (!token) return;
+    setPkgSaving(true); setPkgMsg("");
+    try {
+      const body = {
+        ...pkgForm,
+        price:      parseInt(pkgForm.price) || 0,
+        sort_order: parseInt(pkgForm.sort_order) || 0,
+        items:      pkgForm.items.split("\n").map(s => s.trim()).filter(Boolean),
+      };
+      const url  = pkgEdit ? `${PACKAGES_URL}?action=update&id=${pkgEdit.id}` : `${PACKAGES_URL}?action=create`;
+      const meth = pkgEdit ? "PUT" : "POST";
+      const r    = await fetch(url, { method: meth, headers: { "Content-Type":"application/json","X-Auth-Token":token }, body: JSON.stringify(body) });
+      const d    = await r.json();
+      if (r.ok) { setPkgMsg("✓ Сохранено"); loadPackages(); setPkgEdit(null); setPkgShowNew(false); resetPkgForm(); }
+      else        setPkgMsg(d.error || "Ошибка");
+    } finally { setPkgSaving(false); }
+  };
+
+  const deletePkg = async (id: number) => {
+    if (!token || !confirm("Удалить комплекс?")) return;
+    await fetch(`${PACKAGES_URL}?action=delete&id=${id}`, { method:"DELETE", headers:{"X-Auth-Token":token} });
+    loadPackages();
+  };
+
+  const resetPkgForm = () => setPkgForm({ title:"", description:"", items:"", price:"", duration:"", category:"", sort_order:"0", is_active:true });
+
+  const startEditPkg = (pkg: AdminPackage) => {
+    setPkgEdit(pkg);
+    setPkgForm({ title:pkg.title, description:pkg.description, items:pkg.items.join("\n"), price:String(pkg.price), duration:pkg.duration, category:pkg.category, sort_order:String(pkg.sort_order), is_active:pkg.is_active });
+    setPkgMsg("");
+    setPkgShowNew(false);
+  };
 
   /* shop orders admin state */
   const [shopOrders, setShopOrders] = useState<{id:number;user_id:number;user_name:string;user_phone:string;product_title:string;product_price:number;status:string;payment_type:string;created_at:string}[]>([]);
@@ -219,6 +275,7 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     if (activeTab === "visits")   loadVisits();
     if (activeTab === "wallets")     loadAdminWallets();
     if (activeTab === "shop_orders") loadShopOrders();
+    if (activeTab === "packages")    loadPackages();
     if (activeTab === "my_mail")  loadNotifications();
     if (activeTab === "my_chat")  { loadContacts(); loadChatUsers(); }
   }, [activeTab, token]);
@@ -557,6 +614,112 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                         </div>
                       </form>
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── КОМПЛЕКСЫ ── */}
+            {activeTab === "packages" && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="label-tag">Комплексы услуг ({pkgList.length})</div>
+                  <button onClick={() => { setPkgShowNew(true); setPkgEdit(null); resetPkgForm(); setPkgMsg(""); }} className="btn-red text-xs py-2 px-4">
+                    <Icon name="Plus" size={14} /> Добавить
+                  </button>
+                </div>
+
+                {pkgMsg && (
+                  <div className={`p-3 text-sm ${pkgMsg.startsWith("✓") ? "bg-green-500/10 border border-green-500/30 text-green-400" : "bg-red-500/10 border border-red-500/30 text-red-400"}`}>
+                    {pkgMsg}
+                  </div>
+                )}
+
+                {/* Форма создания/редактирования */}
+                {(pkgShowNew || pkgEdit) && (
+                  <div className="card-dark p-6 space-y-4">
+                    <div className="label-tag">{pkgEdit ? "Редактировать комплекс" : "Новый комплекс"}</div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label-tag mb-1.5 block">Название *</label>
+                        <input className="input-dark" value={pkgForm.title} onChange={e => setPkgForm(f => ({...f, title: e.target.value}))} placeholder="ТО Стандарт" />
+                      </div>
+                      <div>
+                        <label className="label-tag mb-1.5 block">Категория</label>
+                        <input className="input-dark" value={pkgForm.category} onChange={e => setPkgForm(f => ({...f, category: e.target.value}))} placeholder="ТО, Диагностика..." />
+                      </div>
+                      <div>
+                        <label className="label-tag mb-1.5 block">Цена (₽) *</label>
+                        <input className="input-dark" type="number" value={pkgForm.price} onChange={e => setPkgForm(f => ({...f, price: e.target.value}))} placeholder="3500" />
+                      </div>
+                      <div>
+                        <label className="label-tag mb-1.5 block">Длительность</label>
+                        <input className="input-dark" value={pkgForm.duration} onChange={e => setPkgForm(f => ({...f, duration: e.target.value}))} placeholder="2–3 ч" />
+                      </div>
+                      <div>
+                        <label className="label-tag mb-1.5 block">Порядок сортировки</label>
+                        <input className="input-dark" type="number" value={pkgForm.sort_order} onChange={e => setPkgForm(f => ({...f, sort_order: e.target.value}))} />
+                      </div>
+                      <div className="flex items-center gap-3 pt-6">
+                        <label className="label-tag">Активен</label>
+                        <button onClick={() => setPkgForm(f => ({...f, is_active: !f.is_active}))} className={`w-10 h-5 rounded-full transition-colors ${pkgForm.is_active ? "bg-primary" : "bg-border"}`}>
+                          <div className={`w-4 h-4 bg-white rounded-full mx-0.5 transition-transform ${pkgForm.is_active ? "translate-x-5" : ""}`} />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="label-tag mb-1.5 block">Описание</label>
+                      <input className="input-dark" value={pkgForm.description} onChange={e => setPkgForm(f => ({...f, description: e.target.value}))} placeholder="Краткое описание..." />
+                    </div>
+                    <div>
+                      <label className="label-tag mb-1.5 block">Состав (каждая услуга с новой строки)</label>
+                      <textarea className="input-dark resize-none" rows={5} value={pkgForm.items} onChange={e => setPkgForm(f => ({...f, items: e.target.value}))} placeholder={"Замена масла\nЗамена фильтра\nДиагностика"} />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={savePkg} disabled={pkgSaving || !pkgForm.title || !pkgForm.price} className="btn-red disabled:opacity-60 flex items-center gap-2">
+                        {pkgSaving ? <Icon name="Loader2" size={13} className="animate-spin" /> : <Icon name="Save" size={13} />}
+                        {pkgEdit ? "Сохранить" : "Создать"}
+                      </button>
+                      <button onClick={() => { setPkgEdit(null); setPkgShowNew(false); resetPkgForm(); setPkgMsg(""); }} className="btn-ghost text-sm py-2.5 px-4">
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Список */}
+                {pkgLoading ? (
+                  <div className="card-dark p-10 text-center"><Icon name="Loader2" size={24} className="animate-spin mx-auto text-primary" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {pkgList.map(pkg => (
+                      <div key={pkg.id} className={`card-dark p-5 ${!pkg.is_active ? "opacity-50" : ""}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="font-display font-bold text-sm uppercase">{pkg.title}</span>
+                              {pkg.category && <span className="label-tag">{pkg.category}</span>}
+                              {!pkg.is_active && <span className="label-tag text-red-400">Скрыт</span>}
+                            </div>
+                            {pkg.description && <p className="text-xs text-muted-foreground mb-2">{pkg.description}</p>}
+                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                              <span className="text-primary font-bold">{pkg.price.toLocaleString("ru-RU")} ₽</span>
+                              {pkg.duration && <span className="flex items-center gap-1"><Icon name="Clock" size={10} />{pkg.duration}</span>}
+                              <span>{pkg.items.length} услуг в комплексе</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <button onClick={() => startEditPkg(pkg)} className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1">
+                              <Icon name="Pencil" size={12} /> Изменить
+                            </button>
+                            <button onClick={() => deletePkg(pkg.id)} className="btn-ghost text-xs py-1.5 px-3 text-red-400 hover:text-red-300 flex items-center gap-1">
+                              <Icon name="Trash2" size={12} /> Удалить
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {pkgList.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Комплексы не добавлены</p>}
                   </div>
                 )}
               </div>

@@ -57,7 +57,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
           <div className="max-w-xl">
             <div className="flex items-center gap-3 mb-6">
               <div className="red-line" />
-              <span className="label-tag text-primary">Профессиональный автосервис Иркутск</span>
+              <span className="label-tag text-primary">{s("home","hero_label","Профессиональный автосервис Иркутск")}</span>
             </div>
             <h1 className="font-display font-bold text-5xl lg:text-7xl text-foreground leading-none mb-5 uppercase tracking-wider">
               {s("home","hero_title","DD MAXI").split(" ").map((w,i) => i===0 ? <span key={i}>{w}<span className="text-primary"> </span></span> : <span key={i} className="text-primary">{w}</span>)}
