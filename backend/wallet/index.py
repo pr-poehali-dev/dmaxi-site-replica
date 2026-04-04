@@ -100,46 +100,97 @@ def handler(event: dict, context) -> dict:
     cur = db.cursor()
 
     try:
-        # ── Вебхук ЮКасса (не требует авторизации) ──────────────────────
-        # POST ?action=webhook  — ЮКасса присылает уведомление об оплате
+        # ── Единый вебхук ЮКасса (не требует авторизации) ───────────────
+        # POST ?action=webhook — ЮКасса шлёт сюда все уведомления
+        # Роутинг по metadata.type: topup → кошелёк, shop → shop_orders, service/goods → просто уведомление
         if method == "POST" and action == "webhook":
             event_type = body.get("type", "")
             obj        = body.get("object", {})
             yk_id      = obj.get("id", "")
-            status     = obj.get("status", "")
+            yk_status  = obj.get("status", "")
+            metadata   = obj.get("metadata", {})
+            pay_type   = metadata.get("type", "topup")  # topup | shop | service | goods
 
-            if event_type == "notification" and status == "succeeded" and yk_id:
-                cur.execute(
-                    f"SELECT id, user_id, amount, status FROM {SCHEMA}.payment_orders WHERE yookassa_id = %s",
-                    (yk_id,)
-                )
-                order = cur.fetchone()
-                if order and order[3] == "pending":
-                    order_id, user_id, amount = order[0], order[1], float(order[2])
+            if event_type == "notification" and yk_id:
 
-                    # Обновляем статус заказа
-                    cur.execute(
-                        f"UPDATE {SCHEMA}.payment_orders SET status = 'succeeded', updated_at = NOW() WHERE id = %s",
-                        (order_id,)
-                    )
+                # ── Покупка в магазине картой ────────────────────────────
+                if pay_type == "shop":
+                    shop_order_id = metadata.get("shop_order_id")
+                    user_id_meta  = metadata.get("user_id")
+                    if shop_order_id and yk_status == "succeeded":
+                        cur.execute(
+                            f"SELECT id, user_id, product_title, product_price, status "
+                            f"FROM {SCHEMA}.shop_orders WHERE yookassa_payment_id = %s",
+                            (yk_id,)
+                        )
+                        sorder = cur.fetchone()
+                        if sorder and sorder[4] == "pending_card":
+                            sorder_id, suser_id, stitle, sprice = sorder[0], sorder[1], sorder[2], float(sorder[3])
+                            cur.execute(
+                                f"UPDATE {SCHEMA}.shop_orders SET status='paid', updated_at=NOW() WHERE id=%s",
+                                (sorder_id,)
+                            )
+                            cur.execute(
+                                f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'info')",
+                                (suser_id, f"Оплата прошла: {stitle}",
+                                 f"Покупка «{stitle}» за {sprice:,.0f} ₽ оплачена картой. Заказ #{sorder_id}")
+                            )
+                            db.commit()
 
-                    # Зачисляем на кошелёк
-                    wallet_id, old_balance = ensure_wallet(cur, user_id)
-                    new_balance = old_balance + amount
-                    cur.execute(
-                        f"UPDATE {SCHEMA}.wallets SET balance = %s, updated_at = NOW() WHERE id = %s",
-                        (new_balance, wallet_id)
-                    )
-                    add_transaction(cur, wallet_id, user_id, "topup", amount, new_balance,
-                                    f"Пополнение через ЮКасса", yk_id)
+                    elif shop_order_id and yk_status in ("canceled", "cancelled"):
+                        cur.execute(
+                            f"UPDATE {SCHEMA}.shop_orders SET status='cancelled', updated_at=NOW() "
+                            f"WHERE yookassa_payment_id=%s AND status='pending_card'",
+                            (yk_id,)
+                        )
+                        db.commit()
 
-                    # Уведомление в личный кабинет
-                    cur.execute(
-                        f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s, %s, %s, 'info')",
-                        (user_id, "Кошелёк пополнен",
-                         f"На ваш кошелёк зачислено {amount:,.0f} ₽. Текущий баланс: {new_balance:,.0f} ₽")
-                    )
-                    db.commit()
+                # ── Оплата услуги / автотовара картой ───────────────────
+                elif pay_type in ("service", "goods"):
+                    service_order_id = metadata.get("service_order_id")
+                    user_id_meta     = metadata.get("user_id")
+                    amount_val       = float(obj.get("amount", {}).get("value", 0))
+                    if service_order_id and user_id_meta and yk_status == "succeeded":
+                        cur.execute(
+                            f"UPDATE {SCHEMA}.payment_orders SET status='succeeded', updated_at=NOW() WHERE id=%s",
+                            (int(service_order_id),)
+                        )
+                        label = "Товар заказан" if pay_type == "goods" else "Услуга оплачена"
+                        cur.execute(
+                            f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'info')",
+                            (int(user_id_meta), "Оплата прошла успешно",
+                             f"{label} на сумму {amount_val:,.0f} ₽. Спасибо!")
+                        )
+                        db.commit()
+
+                # ── Пополнение кошелька (topup, дефолт) ─────────────────
+                else:
+                    if yk_status == "succeeded":
+                        cur.execute(
+                            f"SELECT id, user_id, amount, status FROM {SCHEMA}.payment_orders WHERE yookassa_id = %s",
+                            (yk_id,)
+                        )
+                        order = cur.fetchone()
+                        if order and order[3] == "pending":
+                            order_id, user_id, amount = order[0], order[1], float(order[2])
+                            cur.execute(
+                                f"UPDATE {SCHEMA}.payment_orders SET status='succeeded', updated_at=NOW() WHERE id=%s",
+                                (order_id,)
+                            )
+                            wallet_id, old_balance = ensure_wallet(cur, user_id)
+                            new_balance = old_balance + amount
+                            cur.execute(
+                                f"UPDATE {SCHEMA}.wallets SET balance=%s, updated_at=NOW() WHERE id=%s",
+                                (new_balance, wallet_id)
+                            )
+                            add_transaction(cur, wallet_id, user_id, "topup", amount, new_balance,
+                                            "Пополнение через ЮКасса", yk_id)
+                            cur.execute(
+                                f"INSERT INTO {SCHEMA}.notifications (user_id, title, body, type) VALUES (%s,%s,%s,'info')",
+                                (user_id, "Кошелёк пополнен",
+                                 f"На ваш кошелёк зачислено {amount:,.0f} ₽. Текущий баланс: {new_balance:,.0f} ₽")
+                            )
+                            db.commit()
 
             return {"statusCode": 200, "headers": cors_headers(), "body": json.dumps({"ok": True})}
 
